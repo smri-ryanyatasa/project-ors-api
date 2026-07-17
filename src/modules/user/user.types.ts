@@ -11,3 +11,7 @@ export interface User {
     status: string,
     business_unit: string,
 }
+
+export interface UserWithPassword extends User {
+  password: string;
+}
