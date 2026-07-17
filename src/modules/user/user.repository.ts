@@ -59,9 +59,9 @@ export class UserRepository {
         return result.recordset[0] ?? null;
     }
 
-    async create(payload: CreateUserSchemaType): Promise<User> {
+    async create(payload: CreateUserSchemaType) {
         const db = await getDb();
-        
+
         const result = await db
             .request()
             .input('user_name', sql.VarChar, payload.user_name)
@@ -183,4 +183,36 @@ export class UserRepository {
                 WHERE user_id = @user_id
             `);
     }
+
+    async updatePassword(userId: number, hashedPassword: string, lastUpdateBy: number): Promise<void> {
+        const db = await getDb();
+        
+        await db
+            .request()
+            .input('user_id', sql.Int, userId)
+            .input('password', sql.VarChar, hashedPassword)
+            .input('last_update_by', sql.Int, lastUpdateBy)
+            .query(`
+                UPDATE users
+                SET password = @password,  last_update_by = @last_update_by
+                WHERE user_id = @user_id
+            `);
+    }
+
+    async history(userId: number) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('user_id', sql.Int, userId)
+            .query(`
+               SELECT
+                   *
+                FROM users_history
+                WHERE user_id = @user_id;
+            `);
+
+        return result.recordset ?? null;
+    }
+    
 }

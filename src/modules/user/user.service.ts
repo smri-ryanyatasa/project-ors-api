@@ -1,5 +1,6 @@
 import { UserRepository } from "./user.repository";
-import { type CreateUserSchemaType, type UpdateUserSchemaType } from "./user.schema";
+import { type CreateUserSchemaType, type UpdateUserSchemaType, type AdminChangePasswordSchemaType } from "./user.schema";
+import { hashPassword } from "../../lib/password";
 
 export class UserService {
     private repository = new UserRepository();
@@ -23,11 +24,17 @@ export class UserService {
 
         if (existing) {
             return {
+                status: 'error',
                 message: 'Username already exists.',
             }
         }
 
-        const user = await this.repository.create(payload);
+        const hashedPassword = await hashPassword(payload.password);
+
+        const user = await this.repository.create({
+            ...payload,
+            password: hashedPassword,
+        });
 
         return {
             status: 'success',
@@ -68,4 +75,32 @@ export class UserService {
             message: 'User successfully deleted.',
         }
     }
+
+    async changeUserPassword(userId: number, payload: AdminChangePasswordSchemaType) {
+        const user = await this.repository.findById(userId);
+
+        if (!user) {
+            return {
+                message: 'Username not found.',
+            }
+        }
+        
+        const hashedPassword = await hashPassword(
+            payload.new_password
+        );
+
+        await this.repository.updatePassword(userId, hashedPassword, payload.last_update_by);
+
+        return {
+            status: 'success',
+            message: 'Password change successfully.',
+        }
+    }
+
+    async userHistory(userId: number) {
+        const user = await this.repository.history(userId);
+
+        return user;
+    }
+    
 }
