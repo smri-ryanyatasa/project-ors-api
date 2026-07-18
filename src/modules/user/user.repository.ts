@@ -2,7 +2,7 @@ import sql from 'mssql';
 
 import { getDb  } from '../../config/database';
 import type { User } from './user.types';
-import { type CreateUserSchemaType, type UpdateUserSchemaType } from './user.schema';
+import { type CreateUserSchemaType, type UpdateUserSchemaType, type BulkUserUploadSchemaType} from './user.schema';
 
 export class UserRepository {
     async findAll(): Promise<User[]> {
@@ -59,7 +59,7 @@ export class UserRepository {
         return result.recordset[0] ?? null;
     }
 
-    async create(payload: CreateUserSchemaType) {
+    async create(payload: CreateUserSchemaType): Promise<User> {
         const db = await getDb();
 
         const result = await db
@@ -213,6 +213,96 @@ export class UserRepository {
             `);
 
         return result.recordset ?? null;
+    }
+
+    async findByUsernames(usernames: string[]): Promise<string[]> {
+        const db = await getDb();
+        const request = db.request();
+
+        const params = usernames.map((_, index) => `@username${index}`);
+
+        usernames.forEach((username, index) => {
+            request.input(
+                `username${index}`,
+                sql.VarChar(100),
+                username
+            );
+        });
+
+        const result = await request.query(`
+            SELECT user_name
+            FROM users
+            WHERE user_name IN (${params.join(', ')})
+        `);
+
+        return result.recordset;
+    }
+
+    async bulkCreate(payload: BulkUserUploadSchemaType): Promise<void> {
+        const db = await getDb();
+        const transaction = new sql.Transaction(db);
+
+        try {
+            await transaction.begin();
+
+            const request = new sql.Request(transaction);
+
+            const values = payload.map((_, index) => {
+                return `(
+                    @user_name_${index},
+                    @password_${index},
+                    @full_name_${index},
+                    @position_${index},
+                    @email_address_${index},
+                    @mms_${index},
+                    @env_${index},
+                    @branches_${index},
+                    @status_${index},
+                    @business_unit_${index},
+                    @created_by_${index},
+                    @description_${index}
+                )`;
+            });
+
+            payload.forEach((user, index) => {
+                request.input(`user_name_${index}`, sql.VarChar(100), user.user_name);
+                request.input(`password_${index}`, sql.VarChar(255), user.password);
+                request.input(`full_name_${index}`, sql.VarChar(255), user.full_name);
+                request.input(`position_${index}`, sql.VarChar(255), user.position);
+                request.input(`email_address_${index}`, sql.VarChar(255), user.email_address);
+                request.input(`mms_${index}`, sql.VarChar(100), user.mms);
+                request.input(`env_${index}`, sql.VarChar(100), user.env);
+                request.input(`branches_${index}`, sql.VarChar(100), user.branches);
+                request.input(`status_${index}`, sql.VarChar(50), user.status);
+                request.input(`business_unit_${index}`, sql.VarChar(255), user.business_unit);
+                request.input(`created_by_${index}`, sql.Int, user.created_by);
+                request.input(`description_${index}`, sql.VarChar(sql.MAX), user.description ?? null); 
+            });
+
+            const result = await request.query(`
+                INSERT INTO users (
+                    user_name,
+                    password,
+                    full_name,
+                    position,
+                    email_address,
+                    mms,
+                    env,
+                    branches,
+                    status,
+                    business_unit,
+                    created_by,
+                    description
+                )
+                VALUES ${values.join(', ')}
+            `);
+
+            await transaction.commit();
+
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
     }
     
 }

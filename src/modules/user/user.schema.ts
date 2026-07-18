@@ -16,13 +16,31 @@ export const CreateUserSchema = z.object({
 });
 export type CreateUserSchemaType = z.infer<typeof CreateUserSchema>;
 
+export const BulkUserUploadSchema = z.array(
+    z.object({
+        user_name: z.string(),
+        password:  z.string().nullish(),
+        full_name: z.string(),
+        description: z.string().nullish(),
+        position: z.string(),
+        email_address:  z.email(),
+        mms: z.string().length(1).nullish(),
+        env: z.string().nullish(),
+        branches: z.string(),
+        status: z.string().min(1).max(8),
+        business_unit: z.string().nullish(),
+        created_by: z.number(),
+    })
+);
+export type BulkUserUploadSchemaType = z.infer<typeof BulkUserUploadSchema>;
+
 export const UpdateUserSchema = z.object({
     full_name: z.string(),
     description: z.string().nullish(),
     position: z.string(),
     email_address:  z.email(),
     mms: z.string().length(1),
-    env: z.string(),
+    env: z.string().nullable(),
     branches: z.string(),
     status: z.string().min(1).max(8),
     business_unit: z.string().nullable(),

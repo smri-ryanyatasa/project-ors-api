@@ -1,9 +1,11 @@
 import { UserRepository } from "./user.repository";
-import { type CreateUserSchemaType, type UpdateUserSchemaType, type AdminChangePasswordSchemaType } from "./user.schema";
+import { type CreateUserSchemaType, type UpdateUserSchemaType, type AdminChangePasswordSchemaType, type BulkUserUploadSchemaType } from "./user.schema";
 import { hashPassword } from "../../lib/password";
 
 export class UserService {
     private repository = new UserRepository();
+    private DEFAULT_PASSWORD = 'password';
+    private CHUNK_SIZE = 100;
 
     async getUsers() {
         return this.repository.findAll();
@@ -101,6 +103,61 @@ export class UserService {
         const user = await this.repository.history(userId);
 
         return user;
+    }
+
+    async bulkUpload(payload: BulkUserUploadSchemaType) {
+        const usernames = new Set<string>();
+        const duplicates = new Set<string>();
+        
+        for (const user of payload) {
+            if (usernames.has(user.user_name)) {
+            duplicates.add(user.user_name);
+            }
+
+            usernames.add(user.user_name);
+        }
+
+        if (duplicates.size > 0) {
+            return {
+                success: false,
+                message: `Duplicate username(s): ${[...duplicates].join(', ')}`
+            }
+        }
+
+        const arrayUsernames = payload.map((user) => user.user_name);
+        
+        const existing = await this.repository.findByUsernames(arrayUsernames);
+        
+        if (existing.length > 0) {
+            return {
+                success: false,
+                message: 'Usernames already exist',
+                usernames: existing,
+            };
+
+        }
+
+        const hashedPassword = await hashPassword(this.DEFAULT_PASSWORD);
+
+        const hashedPayload = await Promise.all(
+            payload.map(async (user) => ({
+                ...user,
+                password: hashedPassword,
+                mms: 'Y', // change for the future
+                env: "SCP" // change for the future
+            }))
+        );
+
+        for (let i = 0; i < hashedPayload.length; i += this.CHUNK_SIZE) {
+            const chunk = hashedPayload.slice(i, i + this.CHUNK_SIZE);
+
+            await this.repository.bulkCreate(chunk); 
+        }
+        
+        return {
+            success: true,
+            message: `${payload.length} users has successfully created`
+        };
     }
     
 }

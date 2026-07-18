@@ -1,7 +1,6 @@
 import { Context } from "hono";
 import { UserService } from "./user.service";
-import { CreateUserSchema, UpdateUserSchema, AdminChangePasswordSchema } from "./user.schema";
-import { use } from "hono/jsx";
+import { CreateUserSchema, UpdateUserSchema, AdminChangePasswordSchema, BulkUserUploadSchema } from "./user.schema";
 
 export class UserController {
     private service = new UserService();
@@ -94,12 +93,43 @@ export class UserController {
         return c.json(user);
     }
 
-    async userHistory(c: Context) {
+    async userHistory(c: Context): Promise<Response> {
         const userId = Number(c.req.param('user_id'));
 
         const history = await this.service.userHistory(userId);
 
         return c.json(history)
+    }
+
+    async bulkUpload(c: Context): Promise<Response> {
+        const body = await c.req.json();
+
+        const result = BulkUserUploadSchema.safeParse(body);
+
+        if (!result.success) {
+            const errors = result.error.issues.map((issue) => ({
+                row: issue.path[0],
+                field: issue.path[1],
+                message: issue.message,
+            }));
+
+            return c.json({
+                message: 'Validation failed',
+                errors,
+            }, 400);
+        }
+        
+        const upload = await this.service.bulkUpload(result.data);
+
+        if (!upload.success) {
+             return c.json({
+                status: 'error',
+                message: upload.message,
+                usernames: upload.usernames
+            }, 400);    
+        }
+
+        return c.json(upload);
     }
 
 }
