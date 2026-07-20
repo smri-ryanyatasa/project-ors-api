@@ -6,5 +6,6 @@ logger.info('✅ Server started');
 
 export default {
   port: env.PORT,
+  idleTimeout: 60,
   fetch: app.fetch,
 };

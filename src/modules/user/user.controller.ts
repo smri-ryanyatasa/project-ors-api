@@ -1,4 +1,6 @@
 import { Context } from "hono";
+import ExcelJS from 'exceljs';
+
 import { UserService } from "./user.service";
 import { CreateUserSchema, UpdateUserSchema, AdminChangePasswordSchema, BulkUserUploadSchema } from "./user.schema";
 
@@ -207,6 +209,59 @@ export class UserController {
             headers: {
                 'Content-Type': 'text/csv; charset=utf-8',
                 'Content-Disposition': 'attachment; filename="users.csv"',
+            },
+        });
+    }
+
+    async excelExport(c: Context): Promise<Response> {
+        const search = c.req.query('search') || '';
+
+        const filterModelParam = c.req.query('filterModel');
+        const sortModelParam = c.req.query('sortModel');
+
+        const filterModel = filterModelParam
+            ? JSON.parse(filterModelParam)
+            : [];
+
+        const sortModel = sortModelParam
+            ? JSON.parse(sortModelParam)
+            : [];
+
+        const users = await this.service.excelExport({
+            search,
+            filterModel,
+            sortModel,
+        });
+
+        const workbook = new ExcelJS.Workbook();
+
+        const worksheet = workbook.addWorksheet('Users');
+
+        worksheet.columns = [
+            { header: 'User ID', key: 'user_id', },
+            { header: 'Username', key: 'user_name', },
+            { header: 'Full Name', key: 'full_name', },
+            { header: 'Description', key: 'description',},
+            { header: 'Position', key: 'position', },
+            { header: 'Email', key: 'email_address', },
+            { header: 'From MMS?', key: 'mms', },
+            { header: 'Environment', key: 'env', },
+            { header: 'Branches', key: 'branches', },
+            { header: 'Status', key: 'status', },
+            { header: 'Business Unit', key: 'bussiness_unit', width: 30, },
+        ];
+
+        worksheet.addRows(users);
+
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        return new Response(buffer, {
+            headers: {
+                'Content-Type':
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+
+                'Content-Disposition':
+                    'attachment; filename="users.xlsx"',
             },
         });
     }
