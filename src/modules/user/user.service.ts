@@ -1,5 +1,6 @@
 import { UserRepository } from "./user.repository";
 import { type CreateUserSchemaType, type UpdateUserSchemaType, type AdminChangePasswordSchemaType, type BulkUserUploadSchemaType } from "./user.schema";
+import type { UserFilter } from "./user.types";
 import { hashPassword } from "../../lib/password";
 
 export class UserService {
@@ -7,8 +8,26 @@ export class UserService {
     private DEFAULT_PASSWORD = 'password';
     private CHUNK_SIZE = 100;
 
-    async getUsers() {
-        return this.repository.findAll();
+    async getUsers({
+        page,
+        pageSize,
+        search,
+        filterModel,
+        sortModel
+    }: {
+        page: number;
+        pageSize: number;
+        search: string;
+        filterModel: UserFilter[];
+        sortModel: any
+    }) {
+        return this.repository.findAll({
+            page,
+            pageSize,
+            search,
+            filterModel,
+            sortModel
+        });
     }
 
     async getUser(userId: number) {
@@ -159,5 +178,21 @@ export class UserService {
             message: `${payload.length} users has successfully created`
         };
     }
+
+    async csvExport({
+        search,
+        filterModel,
+        sortModel
+    }: {
+        search: string;
+        filterModel: UserFilter[];
+        sortModel: any
+    }) {
+        return this.repository.csvExport({
+            search,
+            filterModel,
+            sortModel
+        });
+    }   
     
 }

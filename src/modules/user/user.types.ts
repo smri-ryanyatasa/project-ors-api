@@ -15,3 +15,9 @@ export interface User {
 export interface UserWithPassword extends User {
   password: string;
 }
+
+export interface UserFilter {
+    field: string;
+    operator: string;
+    value?: string;
+};

@@ -10,7 +10,7 @@ export function generateToken(user: any): string {
             },
         JWT_SECRET,
         {
-            expiresIn: '7h',
+            expiresIn: '2h',
         }
     );
 }

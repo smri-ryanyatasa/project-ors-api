@@ -6,7 +6,21 @@ export class UserController {
     private service = new UserService();
 
     async getUsers(c: Context): Promise<Response> {
-        const users = await this.service.getUsers();
+        const page = Number(c.req.query('page') || 1);
+        const pageSize = Number(c.req.query('pageSize') || 5);
+        const search = c.req.query('search') || '';
+        const filterModelParam = c.req.query('filterModel');
+        const sortModelParam = c.req.query('sortModel');
+
+        const filterModel = filterModelParam
+        ? JSON.parse(filterModelParam)
+        : [];
+        
+        const sortModel = sortModelParam
+        ? JSON.parse(sortModelParam)
+        : [];
+
+        const users = await this.service.getUsers({page, pageSize, search, filterModel, sortModel});
 
         return c.json(users);
     }
@@ -130,6 +144,71 @@ export class UserController {
         }
 
         return c.json(upload);
+    }
+
+    async csvExport(c: Context): Promise<Response> {
+        const search = c.req.query('search') || '';
+
+        const filterModelParam = c.req.query('filterModel');
+        const sortModelParam = c.req.query('sortModel');
+
+        const filterModel = filterModelParam
+            ? JSON.parse(filterModelParam)
+            : [];
+
+        const sortModel = sortModelParam
+            ? JSON.parse(sortModelParam)
+            : [];
+
+        const users = await this.service.csvExport({
+            search,
+            filterModel,
+            sortModel,
+        });
+
+        const headers = [
+            'User ID',
+            'Username',
+            'Full Name',
+            'Description',
+            'Position',
+            'Email Address',
+            'MMS',
+            'Environment',
+            'Branches',
+            'Status',
+            'Business Unit',
+        ];
+
+        const csvRows = [
+            headers.join(','),
+            ...users.map((user) =>
+                [
+                    user.user_id,
+                    user.user_name,
+                    user.full_name,
+                    user.description,
+                    user.position,
+                    user.email_address,
+                    user.mms,
+                    user.env,
+                    user.branches,
+                    user.status,
+                    user.business_unit,
+                ]
+                    .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
+                    .join(',')
+            ),
+        ];
+
+        const csv = csvRows.join('\n');
+
+        return new Response(csv, {
+            headers: {
+                'Content-Type': 'text/csv; charset=utf-8',
+                'Content-Disposition': 'attachment; filename="users.csv"',
+            },
+        });
     }
 
 }
