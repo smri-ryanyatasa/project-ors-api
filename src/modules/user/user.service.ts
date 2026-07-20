@@ -193,6 +193,22 @@ export class UserService {
             filterModel,
             sortModel
         });
-    }   
+    }
+    
+    async excelExport({
+        search,
+        filterModel,
+        sortModel
+    }: {
+        search: string;
+        filterModel: UserFilter[];
+        sortModel: any
+    }) {
+        return this.repository.excelExport({
+            search,
+            filterModel,
+            sortModel
+        });
+    }
     
 }

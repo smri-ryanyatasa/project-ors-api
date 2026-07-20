@@ -57,18 +57,81 @@ export class UserRepository {
         }
 
         // ======================================
+        // USERS QUERY
+        // ======================================
+        const request = db
+            .request()
+            .input('offset', sql.Int, offset)
+            .input('pageSize', sql.Int, pageSize);
+
+        // ======================================
         // COLUMN FILTERS
         // ======================================
         filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
-
             const column = allowedFields[filter.field];
 
             if (!column) return;
 
             const parameterName = `filterValue${index}`;
 
-            conditions.push(`${column} LIKE @${parameterName}`);
+            let condition: string;
+            let parameterValue: string;
+
+            switch (filter.operator) {
+                case 'equals':
+                    if (!filter.value) return;
+
+                    condition = `${column} = @${parameterName}`;
+                    parameterValue = filter.value;
+                    break;
+
+                case 'doesNotEqual':
+                    if (!filter.value) return;
+
+                    condition = `${column} <> @${parameterName}`;
+                    parameterValue = filter.value;
+                    break;
+
+                case 'contains':
+                    if (!filter.value) return;
+
+                    condition = `${column} LIKE @${parameterName}`;
+                    parameterValue = `%${filter.value}%`;
+                    break;
+
+                case 'startsWith':
+                    if (!filter.value) return;
+
+                    condition = `${column} LIKE @${parameterName}`;
+                    parameterValue = `${filter.value}%`;
+                    break;
+
+                case 'endsWith':
+                    if (!filter.value) return;
+
+                    condition = `${column} LIKE @${parameterName}`;
+                    parameterValue = `%${filter.value}`;
+                    break;
+
+                case 'isEmpty':
+                    conditions.push(`(${column} IS NULL OR ${column} = '')`);
+                    return;
+
+                case 'isNotEmpty':
+                    conditions.push(`(${column} IS NOT NULL AND ${column} <> '')`);
+                    return;
+
+                default:
+                    return;
+            }
+
+            conditions.push(condition);
+
+            request.input(
+                parameterName,
+                sql.VarChar,
+                parameterValue
+            );
         });
 
         // ======================================
@@ -77,14 +140,6 @@ export class UserRepository {
         const whereClause = conditions.length
             ? `WHERE ${conditions.join(' AND ')}`
             : '';
-
-        // ======================================
-        // USERS QUERY
-        // ======================================
-        const request = db
-            .request()
-            .input('offset', sql.Int, offset)
-            .input('pageSize', sql.Int, pageSize);
 
         // Search parameter
         if (search?.trim()) {
@@ -114,22 +169,22 @@ export class UserRepository {
             }
         }
 
-        // Column filter parameters
-        filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
+        // // Column filter parameters
+        // filterModel.forEach((filter, index) => {
+        //     if (!filter.value) return;
 
-            const column = allowedFields[filter.field];
+        //     const column = allowedFields[filter.field];
 
-            if (!column) return;
+        //     if (!column) return;
 
-            const parameterName = `filterValue${index}`;
+        //     const parameterName = `filterValue${index}`;
 
-            request.input(
-                parameterName,
-                sql.VarChar,
-                `%${filter.value}%`
-            );
-        });
+        //     request.input(
+        //         parameterName,
+        //         sql.VarChar,
+        //         `%${filter.value}%`
+        //     );
+        // });
 
         const usersResult = await request.query<User>(`
             SELECT
@@ -471,6 +526,144 @@ export class UserRepository {
     }
 
     async csvExport({
+        search,
+        filterModel,
+        sortModel,
+    }: {
+        search?: string;
+        filterModel: UserFilter[];
+        sortModel: any;
+    }) {
+        const db = await getDb();
+
+        const conditions: string[] = [];
+
+        const fields = {
+            user_name: 'user_name',
+            full_name: 'full_name',
+            description: 'description',
+            position: 'position',
+            email_address: 'email_address',
+            mms: 'mms',
+            env: 'env',
+            branches: 'branches',
+            status: 'status',
+            business_unit: 'business_unit',
+        }
+
+        const allowedFields: Record<string, string> = fields;
+
+        const allowedSortFields: Record<string, string> = fields;
+
+        // =========================
+        // SEARCH INPUT
+        // =========================
+
+        if (search?.trim()) {
+            conditions.push(`
+                (
+                    user_name LIKE @search
+                    OR full_name LIKE @search
+                )
+            `);
+        }
+
+        // =========================
+        // COLUMN FILTERS
+        // =========================
+
+        filterModel.forEach((filter, index) => {
+            if (!filter.value) return;
+
+            const column = allowedFields[filter.field];
+
+            if (!column) return;
+
+            const parameterName = `filterValue${index}`;
+
+            conditions.push(`${column} LIKE @${parameterName}`);
+        });
+
+        // =========================
+        // SORTING
+        // =========================
+
+        let orderBy = 'user_name ASC';
+
+        if (sortModel.length > 0) {
+            const sort = sortModel[0];
+
+            const column = allowedSortFields[sort.field];
+
+            if (column) {
+                const direction = sort.sort === 'desc'
+                    ? 'DESC'
+                    : 'ASC';
+
+                orderBy = `${column} ${direction}`;
+            }
+        }
+
+        const whereClause = conditions.length
+            ? `WHERE ${conditions.join(' AND ')}`
+            : '';
+
+        // =========================
+        // REQUEST
+        // =========================
+
+        const request = db.request();
+
+        if (search?.trim()) {
+            request.input(
+                'search',
+                sql.VarChar,
+                `%${search.trim()}%`
+            );
+        }
+
+        filterModel.forEach((filter, index) => {
+            if (!filter.value) return;
+
+            const column = allowedFields[filter.field];
+
+            if (!column) return;
+
+            const parameterName = `filterValue${index}`;
+
+            request.input(
+                parameterName,
+                sql.VarChar,
+                `%${filter.value}%`
+            );
+        });
+
+        // =========================
+        // NO PAGINATION HERE
+        // =========================
+
+        const result = await request.query<User>(`
+            SELECT
+                user_id,
+                user_name,
+                full_name,
+                description,
+                position,
+                email_address,
+                mms,
+                env,
+                branches,
+                status,
+                business_unit
+            FROM users
+            ${whereClause}
+            ORDER BY ${orderBy}
+        `);
+
+        return result.recordset;
+    }
+
+    async excelExport({
         search,
         filterModel,
         sortModel,
