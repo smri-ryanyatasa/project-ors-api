@@ -44,10 +44,7 @@ export class UserService {
         const existing = await this.repository.findByUsername(payload.user_name);
 
         if (existing) {
-            return {
-                status: 'error',
-                message: 'Username already exists.',
-            }
+            throw new Error('Username already exists.');
         }
 
         const hashedPassword = await hashPassword(payload.password);
@@ -56,6 +53,8 @@ export class UserService {
             ...payload,
             password: hashedPassword,
         });
+
+        await this.repository.createUserHasRole(user.user_id, payload);
 
         return {
             status: 'success',
@@ -67,12 +66,12 @@ export class UserService {
         const existingUser = await this.repository.findById(userId);
 
         if (!existingUser) {
-            return {
-                message: 'Username not found.',
-            }
+            throw new Error('Username not found.');
         }
 
         const user = await this.repository.update(userId, payload);
+
+        await this.repository.updateUserHasRole(userId, payload.role_id);
 
         return {
             status: 'success',
@@ -84,12 +83,12 @@ export class UserService {
         const existingUser = await this.repository.findById(userId);
 
         if (!existingUser) {
-            return {
-                message: 'Username not found.',
-            }
+            throw new Error('Username not found.');
         }
 
         const user = await this.repository.delete(userId);
+
+        await this.repository.deleteUserHasRole(userId);
 
         return {
             status: 'success',
@@ -209,6 +208,12 @@ export class UserService {
             filterModel,
             sortModel
         });
+    }
+
+    async getBranches() {
+        const branches = await this.repository.getBranches();
+
+        return branches;
     }
     
 }
