@@ -36,56 +36,140 @@ export class UserController {
     }
 
     async createUser(c: Context): Promise<Response> {
-        const body = await c.req.json();
-        
-        const result = CreateUserSchema.safeParse(body);
-        
-        if (!result.success) {
+        try {
+            const body = await c.req.json();
+
+            const result = CreateUserSchema.safeParse(body);
+
+            if (!result.success) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: 'Validation failed.',
+                        data: result.error.flatten(),
+                    },
+                    400
+                );
+            }
+
+            const user = await this.service.createUser(result.data);
+
             return c.json(
-            {
-                status: 'error',
-                message: 'Validation failed.',
-                data: result.error.flatten(),
-            },  400);
-        }
-        
-        const user = await this.service.createUser(result.data);
+                {
+                    status: 'success',
+                    data: user,
+                },
+                201
+            );
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                error.message === 'Username already exists.'
+            ) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: error.message,
+                    },
+                    409
+                );
+            }
 
-         if (user.status === 'error') {
-            return c.json({
-                message: user.message,
-            }, 400);
-        }
+            console.error(error);
 
-        return c.json(user);
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
     }
 
     async updateUser(c: Context): Promise<Response> {
-        const userId = Number(c.req.param('user_id'));
-        const body = await c.req.json();
+        try {
+            const userId = Number(c.req.param('user_id'));
 
-        const result = UpdateUserSchema.safeParse(body);
+            const body = await c.req.json();
 
-        if (!result.success) {
+            const result = UpdateUserSchema.safeParse(body);
+
+            if (!result.success) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: 'Validation failed.',
+                        data: result.error.flatten(),
+                    },
+                    400
+                );
+            }
+
+            const user = await this.service.updateUser(
+                userId,
+                result.data
+            );
+
+            return c.json(user);
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                error.message === 'Username not found.'
+            ) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: error.message,
+                    },
+                    404
+                );
+            }
+
+            console.error(error);
+
             return c.json(
-            {
-                status: 'error',
-                message: 'Validation failed.',
-                data: result.error.flatten(),
-            }, 400);
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
         }
-
-        const user = await this.service.updateUser(userId,  result.data);
-
-        return c.json(user);
     }
 
     async deleteUser(c: Context): Promise<Response> {
-        const userId = Number(c.req.param('user_id'));
+       
+        try {
+            const userId = Number(c.req.param('user_id'));
 
-        const user = await this.service.deleteUser(userId);
+            const user = await this.service.deleteUser(userId);
 
-        return c.json(user);
+            return c.json(user);
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                error.message === 'Username not found.'
+            ) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: error.message,
+                    },
+                    404
+                );
+            }
+
+            console.error(error);
+
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
     }
 
     async changeUserPassword(c: Context): Promise<Response> {
@@ -167,11 +251,12 @@ export class UserController {
             filterModel,
             sortModel,
         });
-
+        console.log(users)
         const headers = [
             'User ID',
             'Username',
             'Full Name',
+            'Role',
             'Description',
             'Position',
             'Email Address',
@@ -189,6 +274,7 @@ export class UserController {
                     user.user_id,
                     user.user_name,
                     user.full_name,
+                    user.role_name,
                     user.description,
                     user.position,
                     user.email_address,
@@ -241,6 +327,7 @@ export class UserController {
             { header: 'User ID', key: 'user_id', },
             { header: 'Username', key: 'user_name', },
             { header: 'Full Name', key: 'full_name', },
+            { header: 'Role', key: 'role_name', },
             { header: 'Description', key: 'description',},
             { header: 'Position', key: 'position', },
             { header: 'Email', key: 'email_address', },
@@ -264,6 +351,22 @@ export class UserController {
                     'attachment; filename="users.xlsx"',
             },
         });
+    }
+
+    async getBranches(c: Context): Promise<Response> {
+        try {
+            const branches = await this.service.getBranches();
+
+            return c.json(branches);
+        } catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
     }
 
 }

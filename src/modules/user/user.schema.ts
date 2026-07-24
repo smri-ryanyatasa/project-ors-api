@@ -13,6 +13,7 @@ export const CreateUserSchema = z.object({
     status: z.string().min(1).max(8),
     business_unit: z.string().nullable(),
     created_by: z.number(),
+    role_id: z.number(),
 });
 export type CreateUserSchemaType = z.infer<typeof CreateUserSchema>;
 
@@ -30,6 +31,7 @@ export const BulkUserUploadSchema = z.array(
         status: z.string().min(1).max(8),
         business_unit: z.string().nullish(),
         created_by: z.number(),
+        role: z.string(),
     })
 );
 export type BulkUserUploadSchemaType = z.infer<typeof BulkUserUploadSchema>;
@@ -45,6 +47,7 @@ export const UpdateUserSchema = z.object({
     status: z.string().min(1).max(8),
     business_unit: z.string().nullable(),
     last_update_by: z.number(),
+    role_id: z.number(),
 });
 export type UpdateUserSchemaType = z.infer<typeof UpdateUserSchema>;
 
