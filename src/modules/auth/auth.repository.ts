@@ -60,13 +60,39 @@ export class AuthRepository {
             .input('user_id', sql.Int, userId)
             .query(`
                 SELECT
-                    user_id,
-                    user_name,
-                    full_name,
-                    email_address,
-                    position
-                FROM users
-                WHERE user_id = @user_id
+                    u.user_id,
+                    u.user_name,
+                    u.full_name,
+                    u.email_address,
+                    u.position,
+
+                    r.id AS role_id,
+                    r.name AS role_name,
+
+                    JSON_QUERY((
+                        SELECT
+                            m.id,
+                            m.name,
+                            m.parent_id,
+                            m.menu_sequence,
+                            m.url,
+                            m.icon
+                        FROM role_menus AS rm
+                        JOIN menus AS m
+                            ON m.id = rm.menu_id
+                        WHERE rm.role_id = r.id
+                        FOR JSON PATH
+                    )) AS menus
+
+                FROM users AS u
+
+                JOIN user_has_roles AS uhr
+                    ON uhr.user_id = u.user_id
+
+                JOIN roles AS r
+                    ON r.id = uhr.role_id
+
+                WHERE u.user_id = @user_id;
             `);
 
         return result.recordset[0] ?? null;
