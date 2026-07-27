@@ -201,16 +201,49 @@ export class UserRepository {
                 u.status,
                 u.business_unit,
                 r.name AS role_name,
-                r.id as role_id
-            FROM users as u
-            LEFT JOIN user_has_roles as uhr
+                r.id AS role_id,
+
+                STRING_AGG(
+                    CONCAT(b.branch_code, ' - ', b.branch_name),
+                    ', '
+                ) AS branch_names
+
+            FROM users AS u
+
+            LEFT JOIN user_has_roles AS uhr
                 ON uhr.user_id = u.user_id
-            LEFT JOIN roles as r
+
+            LEFT JOIN roles AS r
                 ON r.id = uhr.role_id
+
+            OUTER APPLY STRING_SPLIT(
+                CAST(u.branches AS VARCHAR(MAX)),
+                ','
+            ) AS ub
+
+            LEFT JOIN branch AS b
+                ON b.branch_code = TRIM(ub.value)
+
             ${whereClause}
+
+            GROUP BY
+                u.user_id,
+                u.user_name,
+                u.full_name,
+                u.description,
+                u.position,
+                u.email_address,
+                u.mms,
+                u.env,
+                u.branches,
+                u.status,
+                u.business_unit,
+                r.name,
+                r.id
+
             ORDER BY ${orderBy}
             OFFSET @offset ROWS
-            FETCH NEXT @pageSize ROWS ONLY
+            FETCH NEXT @pageSize ROWS ONLY;
         `);
 
         // ======================================

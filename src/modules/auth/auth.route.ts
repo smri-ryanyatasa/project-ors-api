@@ -10,5 +10,6 @@ const controller = new AuthController();
 authRoute.post('/login', (c) => controller.login(c));
 authRoute.patch('/password', authMiddleware, (c) => controller.changePassword(c));
 authRoute.get('/me', authMiddleware, (c) => controller.getCurrentUser(c));
+authRoute.get('/menus', authMiddleware, (c) => controller.getAssignedMenus(c));
 
 export default authRoute;
