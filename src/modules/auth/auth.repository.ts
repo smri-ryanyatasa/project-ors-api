@@ -97,4 +97,41 @@ export class AuthRepository {
 
         return result.recordset[0] ?? null;
     }
+
+    async getAssignedMenus(userId: number) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('user_id', sql.Int, userId)
+            .query(`
+               SELECT
+                    JSON_QUERY((
+                        SELECT
+                            m.id,
+                            m.name,
+                            m.parent_id,
+                            m.menu_sequence,
+                            m.url,
+                            m.icon
+                        FROM role_menus AS rm
+                        JOIN menus AS m
+                            ON m.id = rm.menu_id
+                        WHERE rm.role_id = r.id
+                        FOR JSON PATH
+                    )) AS menus
+
+                FROM users AS u
+
+                JOIN user_has_roles AS uhr
+                    ON uhr.user_id = u.user_id
+
+                JOIN roles AS r
+                    ON r.id = uhr.role_id
+
+                WHERE u.user_id = @user_id;
+            `);
+
+        return result.recordset[0];
+    }
 }

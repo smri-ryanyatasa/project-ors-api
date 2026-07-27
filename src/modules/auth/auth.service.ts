@@ -93,4 +93,12 @@ export class AuthService {
             "user": user
         };
     }
+
+    async getAssignedMenus(userId: number) {
+        const menus = await this.repository.getAssignedMenus(userId);
+
+        return {
+            "menus": menus
+        };
+    }
 }

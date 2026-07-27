@@ -70,4 +70,17 @@ export class AuthController {
 
         return c.json(currentUser);
     }
+
+    async getAssignedMenus(c: Context): Promise<Response> {
+        const user = c.get('user') as {
+            user_id: number;
+            user_name: string;
+        };
+
+        const menus = await this.service.getAssignedMenus(
+            user.user_id
+        );
+
+        return c.json(menus);
+    }
 }
