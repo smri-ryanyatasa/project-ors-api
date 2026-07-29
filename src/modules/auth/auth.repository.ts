@@ -65,7 +65,7 @@ export class AuthRepository {
                     u.full_name,
                     u.email_address,
                     u.position,
-
+                    u.env,
                     r.id AS role_id,
                     r.name AS role_name,
 

@@ -33,3 +33,10 @@ export interface Branches {
     status: string;
     env: string;
 }
+
+export interface AssignebBranch {
+    branch_code: number;
+    branch_name: string;
+    store_type: string;
+    status: string;
+}

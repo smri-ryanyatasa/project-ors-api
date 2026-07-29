@@ -1,8 +1,9 @@
 import sql from 'mssql';
 
 import { getDb  } from '../../config/database';
-import type { User, UserFilter, Branches } from './user.types';
+import type { User, UserFilter, Branches, AssignebBranch } from './user.types';
 import { type CreateUserSchemaType, type UpdateUserSchemaType, type BulkUserUploadSchemaType} from './user.schema';
+import { withUserContext } from '../../lib/with-user-context';
 
 export class UserRepository {
     async findAll({
@@ -1068,5 +1069,18 @@ export class UserRepository {
         
         return result.recordset;
     }
+
+    async assignedBranch(user_name: string): Promise<AssignebBranch[]> {
+        const result = await withUserContext(user_name, async (request) => {
+            return request
+                .input('user_name', sql.VarChar, user_name)
+                .query(`
+                SELECT *
+                FROM dbo.GetBranchListByUser('SCP', @user_name);
+                `);
+        });
+
+        return result.recordset;
+    } 
     
 }
