@@ -215,5 +215,11 @@ export class UserService {
 
         return branches;
     }
+
+    async getAssignedBranch(user_name: string) {
+        const response = await this.repository.assignedBranch(user_name);
+
+        return response;
+    }
     
 }

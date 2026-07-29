@@ -251,7 +251,7 @@ export class UserController {
             filterModel,
             sortModel,
         });
-        console.log(users)
+        
         const headers = [
             'User ID',
             'Username',
@@ -359,6 +359,25 @@ export class UserController {
 
             return c.json(branches);
         } catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async getAssignedBranch(c: Context): Promise<Response> {
+        try {
+            const user = c.get('user');
+
+            const response = await this.service.getAssignedBranch(user.user_name);
+
+            return c.json(response);
+
+        }  catch(error) {
             return c.json(
                 {
                     status: 'error',
