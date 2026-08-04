@@ -1,10 +1,14 @@
 import { Context } from "hono";
 import ExcelJS from 'exceljs';
 
+import { PlUploadRowSchema, SourceFileSchema } from "./plUpload.schema";
 import { PlUploadService } from "./plUpload.service";
 
 export class PlUploadController {
     private service = new PlUploadService();
+
+    private readonly SUCCESS = 'Successfully uploaded with no errors.';
+    private readonly ERROR = (error: number, total: number) => `${error} out of ${total} rows have errors.`;
 
     async getPlsUpload(c: Context): Promise<Response> {
        try {
@@ -294,6 +298,7 @@ export class PlUploadController {
                 { header: 'Carton', key: 'carton_qty',},
                 { header: 'Branch', key: 'branch_code',},
                 { header: 'Vendor', key: 'vendor_code',},
+                { header: 'Reason', key: 'reason',},
             ];
 
             worksheet.addRows(response);
@@ -339,5 +344,74 @@ export class PlUploadController {
             );
         }
     }
+
+    async plCreate(c: Context): Promise<Response> {
+        try {
+            const body = await c.req.json();
+
+            const fieldLabels: Record<string, string> = {
+                document_no: 'DD No',
+                sales_invoice_no: 'SI',
+                ship_to_code: 'Ship To Code',
+                consignee: 'Consignee',
+                uom: 'UOM',
+                material: 'Material',
+                size: 'Size',
+                description: 'Description',
+                served_qty: 'Served Qty',
+                carton_qty: 'Carton Cnt',
+                branch_code: 'Branch',
+                vendor_code: 'Vendor',
+            };
+
+            const rows = body.rows.map((row: any) => {
+                const validation = PlUploadRowSchema.safeParse(row);
+
+                return {
+                ...row,
+                reason: validation.success
+                    ? ''
+                    : validation.error.issues
+                        .map((issue) => `${fieldLabels[String(issue.path[0])]}: ${issue.message}`)
+                        .join(', '),
+                };
+            });
+
+            // const hasErrors = rows.some((row: any) => row.reason.length > 0);
+            const hasErrors = rows.filter((row: any) => row.reason.length > 0).length;
+
+            const response = {
+                ...body,
+                rows,
+                status: hasErrors > 0 ? 1 : 2,
+                result: hasErrors > 0 ? this.ERROR(hasErrors, body.rows.length) : this.SUCCESS,
+                tran_type: 1,
+                uploaded_attempts: 1,
+                tran_date: new Date(),
+            };
+            
+            const result = await this.service.plUpload(response);
+
+            return c.json(result);
+        } catch(error) {
+            if (error instanceof Error && error.message === 'PL File already exists.') {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: 'PL File already exists.',
+                    },
+                    400
+                );
+            }
+
+            return c.json(
+                {
+                    status: error,
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    } 
 
 }

@@ -180,4 +180,16 @@ export class PlUploadService {
         }
     }
 
+    async plUpload(payload: any) {
+        const existingFile = await this.repository.findPlByFilename(payload.filename);
+
+        if (existingFile) {
+            throw new Error('PL File already exists.');
+        }
+
+        const result = await this.repository.plUpload(payload);
+        
+        return result;
+    }
+
 }

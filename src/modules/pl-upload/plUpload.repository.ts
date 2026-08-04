@@ -240,4 +240,137 @@ export class PlUploadRepository {
                 WHERE source_file_id = @id
             `);
     }
+
+    async plUpload(payload: any): Promise<Response> {
+       const db = await getDb();
+       const transaction = new sql.Transaction(db);
+
+        try {
+            await transaction.begin();
+
+            const request = new sql.Request(transaction);
+
+            const result = await request
+
+                .input('filename', sql.VarChar, payload.filename)
+                .input('vendor_code', sql.Int, payload.vendor_code)
+                .input('si_number', sql.VarChar, payload.sales_invoice_no)
+                .input('branch_code', sql.Int, payload.branch_code)
+                .input('file_size', sql.Int, payload.file_size) 
+                .input('tran_type', sql.Int, payload.tran_type)
+                .input('env', sql.VarChar, payload.env)
+                .input('uploaded_by', sql.Int, payload.uploaded_by)
+                .input('row_count', sql.Int, payload.row_count)
+                .input('created_by', sql.Int, payload.created_by)
+                .input('uploaded_attempts', sql.Int, payload.uploaded_attempts)
+                .input('status', sql.Int, payload.status)
+                .input('tran_date', sql.DateTime, payload.tran_date)
+                .input('result', sql.VarChar, payload.result)
+
+                .query(`
+                    INSERT INTO ors_source_file
+                    (
+                        filename,
+                        vendor_code,
+                        si_number,
+                        branch_code,
+                        file_size,
+                        tran_type,
+                        env,
+                        uploaded_by,
+                        row_count,
+                        created_by,
+                        upload_attempts,
+                        status,
+                        tran_date,
+                        result
+                    )
+                    OUTPUT INSERTED.source_file_id
+                    VALUES
+                    (
+                        @filename,
+                        @vendor_code,
+                        @si_number,
+                        @branch_code,
+                        @file_size,
+                        @tran_type,
+                        @env,
+                        @uploaded_by,
+                        @row_count,
+                        @created_by,
+                        @uploaded_attempts,
+                        @status,
+                        @tran_date,
+                        @result
+                    )
+                `);
+
+            const sourceFileId = Number(result.recordset[0].source_file_id);
+            
+            const table = new sql.Table('ors_packing_list');
+
+            table.columns.add('source_file_id', sql.BigInt, { nullable: false });
+            table.columns.add('document_no', sql.VarChar(30), { nullable: false });
+            table.columns.add('sales_invoice_no', sql.VarChar(30), { nullable: false });
+            table.columns.add('ship_to_code', sql.VarChar(30), { nullable: true });
+            table.columns.add('consignee', sql.NVarChar(100), { nullable: false });
+            table.columns.add('uom', sql.VarChar(10), { nullable: true });
+            table.columns.add('material', sql.NVarChar(60), { nullable: false });
+            table.columns.add('size', sql.NVarChar(60), { nullable: false });
+            table.columns.add('description', sql.NVarChar(200), { nullable: false });
+            table.columns.add('served_qty', sql.Decimal(10, 0), { nullable: false });
+            table.columns.add('carton_qty', sql.Decimal(4, 0), { nullable: true });
+            table.columns.add('branch_code', sql.Int, { nullable: false });
+            table.columns.add('vendor_code', sql.Int, { nullable: false });
+            table.columns.add('env', sql.VarChar(10), { nullable: false });
+            table.columns.add('status', sql.VarChar(100), { nullable: false });
+            table.columns.add('reason', sql.NVarChar(sql.MAX), { nullable: true });
+            
+            for (const row of payload.rows) {
+                table.rows.add(
+                    Number(sourceFileId),
+                    String(row.document_no),
+                    String(row.sales_invoice_no),
+                    String(row.ship_to_code),
+                    row.consignee, 
+                    row.uom,
+                    row.material,
+                    String(row.size),
+                    row.description,
+                    Number(row.served_qty),
+                    Number(row.carton_qty),
+                    Number(row.branch_code),
+                    Number(row.vendor_code),
+                    payload.env,
+                    String(payload.status),
+                    row.reason
+                );
+            }
+            
+            const bulkRequest = new sql.Request(transaction);
+            const bulkResult = await bulkRequest.bulk(table);
+
+            await transaction.commit(); 
+
+            return result.recordset[0] ?? null;
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
+
+    async findPlByFilename(filename: string): Promise<PLsList> {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('filename', sql.VarChar, filename)
+            .query(`
+                SELECT *
+                FROM ors_source_file
+                WHERE filename = @filename
+            `);
+
+        return result.recordset[0] ?? null;
+    }
 }
