@@ -1,7 +1,7 @@
 import { Context } from "hono";
 import ExcelJS from 'exceljs';
 
-import { PlUploadRowSchema, SourceFileSchema } from "./plUpload.schema";
+import { PlUploadRowSchema, SourceFileSchema, PlUploadRowIntegerSchema } from "./plUpload.schema";
 import { PlUploadService } from "./plUpload.service";
 
 export class PlUploadController {
@@ -307,11 +307,8 @@ export class PlUploadController {
 
             return new Response(buffer, {
                 headers: {
-                    'Content-Type':
-                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-
-                    'Content-Disposition':
-                        'attachment; filename="pl_exceptions.xlsx"',
+                    'Content-Disposition': 'attachment; filename="pl_exceptions.xls"',
+                    'Content-Type': 'application/vnd.ms-excel',
                 },
             });
 
@@ -364,6 +361,20 @@ export class PlUploadController {
                 vendor_code: 'Vendor',
             };
 
+            const integerValidation = PlUploadRowIntegerSchema.safeParse(body.rows);
+
+            if (!integerValidation.success) {
+                const errors = integerValidation.error.issues.map((issue) => ({
+                    row: issue.path[0],
+                    field: issue.path[1],
+                    message: issue.message,
+                }));
+                return c.json({
+                    message: 'Validation failed',
+                    errors,
+                }, 400);
+            }
+
             const rows = body.rows.map((row: any) => {
                 const validation = PlUploadRowSchema.safeParse(row);
 
@@ -413,5 +424,89 @@ export class PlUploadController {
             );
         }
     } 
+
+    async plReUpload(c: Context): Promise<Response> {
+        try {
+            const body = await c.req.json();
+
+            const fieldLabels: Record<string, string> = {
+                document_no: 'DD No',
+                sales_invoice_no: 'SI',
+                ship_to_code: 'Ship To Code',
+                consignee: 'Consignee',
+                uom: 'UOM',
+                material: 'Material',
+                size: 'Size',
+                description: 'Description',
+                served_qty: 'Served Qty',
+                carton_qty: 'Carton Cnt',
+                branch_code: 'Branch',
+                vendor_code: 'Vendor',
+            };
+            
+            const integerValidation = PlUploadRowIntegerSchema.safeParse(body.rows);
+
+            if (!integerValidation.success) {
+                const errors = integerValidation.error.issues.map((issue) => ({
+                    row: issue.path[0],
+                    field: issue.path[1],
+                    message: issue.message,
+                }));
+                return c.json({
+                    message: 'Validation failed',
+                    errors,
+                }, 400);
+            }
+
+            const rows = body.rows.map((row: any) => {
+                const validation = PlUploadRowSchema.safeParse(row);
+
+                return {
+                ...row,
+                reason: validation.success
+                    ? ''
+                    : validation.error.issues
+                        .map((issue) => `${fieldLabels[String(issue.path[0])]}: ${issue.message}`)
+                        .join(', '),
+                };
+            });
+
+            const hasErrors = rows.filter((row: any) => row.reason.length > 0).length;
+
+            const response = {
+                ...body,
+                rows,
+                status: hasErrors > 0 ? 1 : 2,
+                result: hasErrors > 0 ? this.ERROR(hasErrors, body.rows.length) : this.SUCCESS,
+                tran_type: 1,
+                tran_date: new Date(),
+                uploaded_date: new Date(),
+            };
+            
+            const result = await this.service.plReUpload(response); 
+
+            return c.json(result);
+
+        } catch(error) {
+            if (error instanceof Error && error.message === 'PL File not found.') {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: 'PL File not found.',
+                    },
+                    400
+                );
+            }
+
+            return c.json(
+                {
+                    status: error,
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+            
 
 }
