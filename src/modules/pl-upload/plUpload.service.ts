@@ -1,4 +1,5 @@
 import { PlUploadRepository } from "./plUpload.repository";
+import type { PlsUpload, PlsUploadStatus, PlsUploadLogs, PLsList, PlsCreate } from './plUpload.types';
 
 export class PlUploadService {
      private repository = new PlUploadRepository();
@@ -13,17 +14,7 @@ export class PlUploadService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string, 
-        branch: number,
-        page: number, 
-        pageSize: number, 
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PlsUpload) {
         const response = await this.repository.plsUpload({
             user_name, 
             env, 
@@ -47,15 +38,7 @@ export class PlUploadService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string, 
-        branch: number,
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PlsUploadStatus) {
         const response = await this.repository.plsUploadStatus({
             user_name, 
             env, 
@@ -77,15 +60,7 @@ export class PlUploadService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string, 
-        branch: number,
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PlsUploadStatus) {
         const response = await this.repository.csvExport({
             user_name, 
             env, 
@@ -107,15 +82,7 @@ export class PlUploadService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string, 
-        branch: number,
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PlsUploadStatus) {
         const response = await this.repository.excelExport({
             user_name, 
             env, 
@@ -133,11 +100,7 @@ export class PlUploadService {
         user_name, 
         env, 
         filename
-    }: {
-        user_name: string, 
-        env: string, 
-        filename: string
-    }) {
+    }: PlsUploadLogs) {
         const response = await this.repository.plUploadLogs({
             user_name, 
             env,
@@ -151,11 +114,7 @@ export class PlUploadService {
         user_name, 
         env, 
         filename
-    }: {
-        user_name: string, 
-        env: string, 
-        filename: string
-    }) {
+    }: PlsUploadLogs) {
         const response = await this.repository.plUploadExceptions({
             user_name, 
             env,
@@ -180,7 +139,7 @@ export class PlUploadService {
         }
     }
 
-    async plUpload(payload: any) {
+    async plUpload(payload: PlsCreate) {
         const existingFile = await this.repository.findPlByFilename(payload.filename);
 
         if (existingFile) {
@@ -189,6 +148,18 @@ export class PlUploadService {
 
         const result = await this.repository.plUpload(payload);
         
+        return result;
+    }
+
+    async plReUpload(payload: PlsCreate) {
+        const existingFile = await this.repository.findPlByFilename(payload.filename);
+
+        if (!existingFile) {
+            throw new Error('PL File not found.');
+        }
+
+        const result = await this.repository.plReUpload(payload);
+
         return result;
     }
 

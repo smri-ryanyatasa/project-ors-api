@@ -33,3 +33,23 @@ export interface PLsList {
     status: string,
     result: string,
 }
+
+export interface PlsCreate {
+    filename: string,
+    vendor_code: number,
+    sales_invoice_no: string,
+    branch_code: number,
+    file_size: number,
+    tran_type: number,
+    env: string,
+    uploaded_by: number,
+    row_count: number,
+    created_by: number,
+    uploaded_attempts: number,
+    status: number,
+    tran_date: Date,
+    result: string
+    rows: any[],
+    source_file_id: number,
+    uploaded_date: Date,
+}

@@ -17,6 +17,49 @@ export const SourceFileSchema = z.object({
 });
 export type SourceFileSchemaType = z.infer<typeof SourceFileSchema>;
 
+export const PlUploadRowIntegerSchema = z.array(
+    z.object({
+        served_qty: z.preprocess(
+            (value) => value === '' ? undefined : value,
+            z.number({
+                error: 'Served Qty is required.',
+            })
+                .int('Served Qty must be a whole number.')
+                .refine((value) => value.toString().length <= 10, {
+                message: 'Served Qty must not exceed 10 digits.',
+                })
+            ),
+
+        carton_qty: z
+            .coerce
+            .number()
+            .max(4, 'Carton Qty must not exceed 4 digits.')
+            .int('Carton Qty must be a whole number.')
+            .optional(),
+
+        branch_code: z.preprocess(
+            (value) => value === '' ? undefined : value,
+                z.coerce
+                .number({
+                    error: 'is required.',
+                })
+                .int('Must be a whole number.')
+                .refine((value) => value.toString().length <= 4, {
+                    message: 'Must not exceed 4 digits.',
+                })
+            ),
+
+        vendor_code: z
+            .coerce
+            .number()
+            .refine((value) => value.toString().length <= 6, {
+                message: 'Must not exceed 6 digits.',
+            })
+            .int('Served Qty must be a whole number.'),
+        })
+    );
+
+
 export const PlUploadRowSchema = z.object({
   document_no: z
     .coerce
@@ -85,41 +128,4 @@ export const PlUploadRowSchema = z.object({
     .nonempty('is required.')
     .max(50, 'Must not exceed 50 characters.'),
 
-  served_qty: z.preprocess(
-    (value) => value === '' ? undefined : value,
-    z.number({
-        error: 'Served Qty is required.',
-    })
-        .int('Served Qty must be a whole number.')
-        .refine((value) => value.toString().length <= 10, {
-        message: 'Must not exceed 10 digits.',
-        })
-    ),
-
-  carton_qty: z
-    .coerce
-    .number()
-    .max(4, 'Must not exceed 4 digits.')
-    .int('Served Qty must be a whole number.')
-    .optional(),
-
-  branch_code: z.preprocess(
-    (value) => value === '' ? undefined : value,
-        z.coerce
-        .number({
-            error: 'is required.',
-        })
-        .int('Must be a whole number.')
-        .refine((value) => value.toString().length <= 4, {
-            message: 'Must not exceed 4 digits.',
-        })
-    ),
-
-  vendor_code: z
-    .coerce
-    .number()
-    .refine((value) => value.toString().length <= 6, {
-        message: 'Must not exceed 6 digits.',
-    })
-    .int('Served Qty must be a whole number.'),
 });

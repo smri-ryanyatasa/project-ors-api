@@ -16,6 +16,7 @@ plUploadRoute.get('/excel-export', (c) => controller.excelExport(c));
 plUploadRoute.get('/pl-logs', (c) => controller.getllUploadLogs(c));
 plUploadRoute.get('/pl-exceptions', (c) => controller.getPlUploadExceptions(c));
 plUploadRoute.post('/create', (c) => controller.plCreate(c));
+plUploadRoute.post('/re-upload', (c) => controller.plReUpload(c));
 
 plUploadRoute.delete('/:id', (c) => controller.deletePl(c));
 

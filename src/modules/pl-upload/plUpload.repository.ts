@@ -3,7 +3,7 @@ import sql from 'mssql';
 import { getDb  } from '../../config/database';
 import { withUserContext } from '../../lib/with-user-context';
 
-import type { PlsUpload, PlsUploadStatus, PlsUploadLogs, PLsList } from './plUpload.types';
+import type { PlsUpload, PlsUploadStatus, PlsUploadLogs, PLsList, PlsCreate } from './plUpload.types';
 
 export class PlUploadRepository {
     async plsUpload({
@@ -239,11 +239,13 @@ export class PlUploadRepository {
                 DELETE FROM ors_source_file
                 WHERE source_file_id = @id
             `);
+
+        await this.deletePackingListBySourceFileId(id);
     }
 
-    async plUpload(payload: any): Promise<Response> {
-       const db = await getDb();
-       const transaction = new sql.Transaction(db);
+    async plUpload(payload: PlsCreate): Promise<Response> {
+        const db = await getDb();
+        const transaction = new sql.Transaction(db);
 
         try {
             await transaction.begin();
@@ -268,6 +270,10 @@ export class PlUploadRepository {
                 .input('result', sql.VarChar, payload.result)
 
                 .query(`
+                    DECLARE @Inserted TABLE (
+                        source_file_id BIGINT
+                    );
+
                     INSERT INTO ors_source_file
                     (
                         filename,
@@ -286,6 +292,7 @@ export class PlUploadRepository {
                         result
                     )
                     OUTPUT INSERTED.source_file_id
+                    INTO @Inserted (source_file_id)
                     VALUES
                     (
                         @filename,
@@ -303,9 +310,12 @@ export class PlUploadRepository {
                         @tran_date,
                         @result
                     )
+
+                    SELECT source_file_id
+                    FROM @Inserted;
                 `);
 
-            const sourceFileId = Number(result.recordset[0].source_file_id);
+            const sourceFileId = Number(result.recordset[0]?.source_file_id);
             
             const table = new sql.Table('ors_packing_list');
 
@@ -372,5 +382,112 @@ export class PlUploadRepository {
             `);
 
         return result.recordset[0] ?? null;
+    }
+
+    async deletePackingListBySourceFileId(sourceFileId: number,  transaction?: sql.Transaction): Promise<boolean> {
+        const request = transaction
+        ? new sql.Request(transaction)
+        : (await getDb()).request();
+
+        const result = await request
+            .input('sourceFileId', sql.BigInt, sourceFileId)
+            .query(`
+                DELETE FROM ors_packing_list
+                WHERE source_file_id = @sourceFileId
+            `);
+
+        return (result?.rowsAffected[0] ?? 0) > 0;
+    }
+
+    async plReUpload(payload: PlsCreate): Promise<boolean> {
+        const db = await getDb();
+        const transaction = new sql.Transaction(db);
+
+        try {
+            await transaction.begin();
+
+            await this.deletePackingListBySourceFileId(payload.source_file_id, transaction);
+
+            const updateRequest = new sql.Request(transaction);
+
+            const result = await updateRequest
+
+                .input('source_file_id', sql.BigInt, payload.source_file_id)
+                .input('result', sql.VarChar, payload.result)
+                .input('uploaded_date', sql.DateTime, payload.uploaded_date)
+                .input('tran_date', sql.DateTime, payload.tran_date)
+                .input('upload_attempts', sql.Int, payload.uploaded_attempts)
+                .input('row_count', sql.Int, payload.row_count)
+                .input('file_size', sql.Int, payload.file_size) 
+                .input('status', sql.Int, payload.status) 
+
+                .query(`
+                    UPDATE ors_source_file
+                    SET 
+                        result = @result,
+                        uploaded_date = @uploaded_date,
+                        tran_date = @tran_date,
+                        upload_attempts = @upload_attempts,
+                        row_count = @row_count,
+                        file_size = @file_size,
+                        status = @status
+                    WHERE source_file_id = @source_file_id;
+                `);
+
+            const sourceFileId = Number(payload.source_file_id);
+            
+            const table = new sql.Table('ors_packing_list');
+
+            table.columns.add('source_file_id', sql.BigInt, { nullable: false });
+            table.columns.add('document_no', sql.VarChar(30), { nullable: false });
+            table.columns.add('sales_invoice_no', sql.VarChar(30), { nullable: false });
+            table.columns.add('ship_to_code', sql.VarChar(30), { nullable: true });
+            table.columns.add('consignee', sql.NVarChar(100), { nullable: false });
+            table.columns.add('uom', sql.VarChar(10), { nullable: true });
+            table.columns.add('material', sql.NVarChar(60), { nullable: false });
+            table.columns.add('size', sql.NVarChar(60), { nullable: false });
+            table.columns.add('description', sql.NVarChar(200), { nullable: false });
+            table.columns.add('served_qty', sql.Decimal(10, 0), { nullable: false });
+            table.columns.add('carton_qty', sql.Decimal(4, 0), { nullable: true });
+            table.columns.add('branch_code', sql.Int, { nullable: false });
+            table.columns.add('vendor_code', sql.Int, { nullable: false });
+            table.columns.add('env', sql.VarChar(10), { nullable: false });
+            table.columns.add('status', sql.VarChar(100), { nullable: false });
+            table.columns.add('reason', sql.NVarChar(sql.MAX), { nullable: true });
+            
+            for (const row of payload.rows) {
+                table.rows.add(
+                    Number(sourceFileId),
+                    String(row.document_no),
+                    String(row.sales_invoice_no),
+                    String(row.ship_to_code),
+                    row.consignee, 
+                    row.uom,
+                    row.material,
+                    String(row.size),
+                    row.description,
+                    Number(row.served_qty),
+                    Number(row.carton_qty),
+                    Number(row.branch_code),
+                    Number(row.vendor_code),
+                    payload.env,
+                    String(payload.status),
+                    row.reason
+                );
+            }
+            
+            const bulkRequest = new sql.Request(transaction);
+            
+            const bulkResult = await bulkRequest.bulk(table);
+
+            const updated = (result.rowsAffected[0] ?? 0) > 0;
+
+            await transaction.commit(); 
+
+            return updated;
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
     }
 }
