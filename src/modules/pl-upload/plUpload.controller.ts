@@ -1,5 +1,6 @@
 import { Context } from "hono";
 import ExcelJS from 'exceljs';
+import * as XLSX from 'xlsx';
 
 import { PlUploadRowSchema, SourceFileSchema, PlUploadRowIntegerSchema } from "./plUpload.schema";
 import { PlUploadService } from "./plUpload.service";
@@ -281,36 +282,74 @@ export class PlUploadController {
                 filename,
             });
 
-            const workbook = new ExcelJS.Workbook();
+            const data = response.map((row) => ({
+                'DD No': row.document_no,
+                'SI': row.sales_invoice_no,
+                'Ship To Code': row.ship_to_code,
+                'Consignee': row.consignee,
+                'UOM': row.uom,
+                'Material': row.material,
+                'Size No': row.size,
+                'Description': row.description,
+                'Served Qty': row.served_qty,
+                'Carton Qty': row.carton_qty,
+                'Branch': row.branch_code,
+                'Vendor': row.vendor_code,
+                'Reason': row.reason,
+            }));
 
-            const worksheet = workbook.addWorksheet('PLExceptions');
+            const worksheet = XLSX.utils.json_to_sheet(data);
 
-            worksheet.columns = [
-                { header: 'DD No', key: 'document_no', },
-                { header: 'SI', key: 'sales_invoice_no', },
-                { header: 'Ship to', key: 'ship_to_code', },
-                { header: 'Consignee', key: 'consignee', },
-                { header: 'UOM', key: 'uom',},
-                { header: 'Material', key: 'material',},
-                { header: 'Size #', key: 'size',},
-                { header: 'Description', key: 'description',},
-                { header: 'Served', key: 'served_qty',},
-                { header: 'Carton', key: 'carton_qty',},
-                { header: 'Branch', key: 'branch_code',},
-                { header: 'Vendor', key: 'vendor_code',},
-                { header: 'Reason', key: 'reason',},
-            ];
+            const workbook = XLSX.utils.book_new();
 
-            worksheet.addRows(response);
+            XLSX.utils.book_append_sheet(
+                workbook,
+                worksheet,
+                'PLExceptions'
+            );
 
-            const buffer = await workbook.xlsx.writeBuffer();
+            const buffer = XLSX.write(workbook, {
+            type: 'buffer',
+            bookType: 'xls',
+            });
 
             return new Response(buffer, {
                 headers: {
-                    'Content-Disposition': 'attachment; filename="pl_exceptions.xls"',
+                    'Content-Disposition': 'attachment; filename="sample.xls"',
                     'Content-Type': 'application/vnd.ms-excel',
                 },
             });
+
+            // const workbook = new ExcelJS.Workbook();
+
+            // const worksheet = workbook.addWorksheet('PLExceptions');
+
+            // worksheet.columns = [
+            //     { header: 'DD No', key: 'document_no', },
+            //     { header: 'SI', key: 'sales_invoice_no', },
+            //     { header: 'Ship to', key: 'ship_to_code', },
+            //     { header: 'Consignee', key: 'consignee', },
+            //     { header: 'UOM', key: 'uom',},
+            //     { header: 'Material', key: 'material',},
+            //     { header: 'Size #', key: 'size',},
+            //     { header: 'Description', key: 'description',},
+            //     { header: 'Served', key: 'served_qty',},
+            //     { header: 'Carton', key: 'carton_qty',},
+            //     { header: 'Branch', key: 'branch_code',},
+            //     { header: 'Vendor', key: 'vendor_code',},
+            //     { header: 'Reason', key: 'reason',},
+            // ];
+
+            // worksheet.addRows(response);
+
+            // const buffer = await workbook.xlsx.writeBuffer();
+
+            // return new Response(buffer, {
+            //     headers: {
+            //         'Content-Disposition': 'attachment; filename="pl_exceptions.xls"',
+            //         'Content-Type': 'application/vnd.ms-excel',
+            //     },
+            // });
 
 
         }  catch(error) {
