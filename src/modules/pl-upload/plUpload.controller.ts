@@ -383,6 +383,10 @@ export class PlUploadController {
 
     async plCreate(c: Context): Promise<Response> {
         try {
+            const user = c.get('user');
+
+            const user_name = user.user_name;
+
             const body = await c.req.json();
 
             const fieldLabels: Record<string, string> = {
@@ -438,6 +442,7 @@ export class PlUploadController {
                 tran_type: 1,
                 uploaded_attempts: 1,
                 tran_date: new Date(),
+                user_name
             };
             
             const result = await this.service.plUpload(response);
@@ -467,6 +472,10 @@ export class PlUploadController {
     async plReUpload(c: Context): Promise<Response> {
         try {
             const body = await c.req.json();
+
+            const user = c.get('user');
+
+            const user_name = user.user_name;
 
             const fieldLabels: Record<string, string> = {
                 document_no: 'DD No',
@@ -520,6 +529,7 @@ export class PlUploadController {
                 tran_type: 1,
                 tran_date: new Date(),
                 uploaded_date: new Date(),
+                user_name
             };
             
             const result = await this.service.plReUpload(response); 
