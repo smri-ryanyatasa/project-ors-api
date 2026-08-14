@@ -54,6 +54,8 @@ export class UserRepository {
                 (
                     u.user_name LIKE @search
                     OR u.full_name LIKE @search
+                    OR u.position LIKE @search
+                    OR r.name LIKE @search
                 )
             `);
         }
@@ -171,6 +173,14 @@ export class UserRepository {
             }
         }
 
+        let outerOrderBy;
+
+        if (orderBy.includes('r.name')) {
+            outerOrderBy = orderBy.replace('r.name', 'pu.role_name');
+        } else {
+            outerOrderBy = orderBy.replace(/^(r|u)\./, 'pu.');
+        }
+    
         // // Column filter parameters
         // filterModel.forEach((filter, index) => {
         //     if (!filter.value) return;
@@ -189,67 +199,90 @@ export class UserRepository {
         // });
 
         const usersResult = await request.query<User>(`
+            WITH PaginatedUsers AS (
+                SELECT
+                    u.user_id,
+                    u.user_name,
+                    u.full_name,
+                    u.description,
+                    u.position,
+                    u.email_address,
+                    u.mms,
+                    u.env,
+                    u.branches,
+                    u.status,
+                    u.business_unit,
+                    r.name AS role_name,
+                    r.id AS role_id
+                FROM users AS u
+
+                LEFT JOIN user_has_roles AS uhr
+                    ON uhr.user_id = u.user_id
+
+                LEFT JOIN roles AS r
+                    ON r.id = uhr.role_id
+
+                ${whereClause}
+
+                ORDER BY ${orderBy}
+                OFFSET @offset ROWS
+                FETCH NEXT @pageSize ROWS ONLY
+            )
+
             SELECT
-                u.user_id,
-                u.user_name,
-                u.full_name,
-                u.description,
-                u.position,
-                u.email_address,
-                u.mms,
-                u.env,
-                u.branches,
-                u.status,
-                u.business_unit,
-                r.name AS role_name,
-                r.id AS role_id,
+                pu.user_id,
+                pu.user_name,
+                pu.full_name,
+                pu.description,
+                pu.position,
+                pu.email_address,
+                pu.mms,
+                pu.env,
+                pu.branches,
+                pu.status,
+                pu.business_unit,
+                pu.role_name,
+                pu.role_id,
 
                 STRING_AGG(
                     CONCAT(b.branch_code, ' - ', b.branch_name),
                     ', '
                 ) AS branch_names
 
-            FROM users AS u
+            FROM PaginatedUsers AS pu
 
-            LEFT JOIN user_has_roles AS uhr
-                ON uhr.user_id = u.user_id
-
-            LEFT JOIN roles AS r
-                ON r.id = uhr.role_id
-
-            OUTER APPLY STRING_SPLIT(
-                CAST(u.branches AS VARCHAR(MAX)),
-                ','
+            OUTER APPLY (
+                SELECT
+                    TRY_CONVERT(INT, TRIM(value)) AS branch_code
+                FROM STRING_SPLIT(
+                    CAST(pu.branches AS VARCHAR(MAX)),
+                    ','
+                )
+                WHERE TRIM(value) <> ''
             ) AS ub
 
             LEFT JOIN branch AS b
-                ON b.branch_code = TRIM(ub.value)
-
-            ${whereClause}
+                ON b.branch_code = ub.branch_code
 
             GROUP BY
-                u.user_id,
-                u.user_name,
-                u.full_name,
-                u.description,
-                u.position,
-                u.email_address,
-                u.mms,
-                u.env,
-                u.branches,
-                u.status,
-                u.business_unit,
-                r.name,
-                r.id
+                pu.user_id,
+                pu.user_name,
+                pu.full_name,
+                pu.description,
+                pu.position,
+                pu.email_address,
+                pu.mms,
+                pu.env,
+                pu.branches,
+                pu.status,
+                pu.business_unit,
+                pu.role_name,
+                pu.role_id
 
-            ORDER BY ${orderBy}
-            OFFSET @offset ROWS
-            FETCH NEXT @pageSize ROWS ONLY;
+            ORDER BY ${outerOrderBy};
         `);
 
-        // ======================================
         // COUNT QUERY
-        // ======================================
         const countRequest = db.request();
 
         // Search parameter
