@@ -1,8 +1,10 @@
 import { PlUploadRepository } from "./plUpload.repository";
+import { UserRepository } from "../user/user.repository";
 import type { PlsUpload, PlsUploadStatus, PlsUploadLogs, PLsList, PlsCreate } from './plUpload.types';
 
 export class PlUploadService {
-     private repository = new PlUploadRepository();
+    private repository = new PlUploadRepository();
+    private userRepository = new UserRepository();
 
     async getPlsUpload({
         user_name,
@@ -140,6 +142,14 @@ export class PlUploadService {
     }
 
     async plUpload(payload: PlsCreate) {
+        const assignedBranch = await this.userRepository.assignedBranch(payload.user_name);
+        
+        const existingBranch = assignedBranch.some((branch) => branch.branch_code === Number(payload.branch_code))
+
+        if (!existingBranch) {
+            throw new Error('You are no longer authorized to make changes on the selected Branch.');
+        }
+          
         const existingFile = await this.repository.findPlByFilename(payload.filename);
 
         if (existingFile) {
@@ -152,6 +162,14 @@ export class PlUploadService {
     }
 
     async plReUpload(payload: PlsCreate) {
+        const assignedBranch = await this.userRepository.assignedBranch(payload.user_name);
+        
+        const existingBranch = assignedBranch.some((branch) => branch.branch_code === Number(payload.branch_code))
+
+        if (!existingBranch) {
+            throw new Error('You are no longer authorized to make changes on the selected Branch.');
+        }
+        
         const existingFile = await this.repository.findPlByFilename(payload.filename);
 
         if (!existingFile) {

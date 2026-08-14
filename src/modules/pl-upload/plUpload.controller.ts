@@ -10,6 +10,7 @@ export class PlUploadController {
 
     private readonly SUCCESS = 'Successfully uploaded with no errors.';
     private readonly ERROR = (error: number, total: number) => `${error} out of ${total} rows have errors.`;
+    private readonly UNASSIGNED_BRANCH = 'You are no longer authorized to make changes on the selected Branch.'
 
     async getPlsUpload(c: Context): Promise<Response> {
        try {
@@ -459,6 +460,16 @@ export class PlUploadController {
                 );
             }
 
+            if (error instanceof Error && error.message === this.UNASSIGNED_BRANCH) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: this.UNASSIGNED_BRANCH,
+                    },
+                    400
+                );
+            }
+
             return c.json(
                 {
                     status: error,
@@ -542,6 +553,16 @@ export class PlUploadController {
                     {
                         status: 'error',
                         message: 'PL File not found.',
+                    },
+                    400
+                );
+            }
+
+            if (error instanceof Error && error.message === this.UNASSIGNED_BRANCH) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: this.UNASSIGNED_BRANCH,
                     },
                     400
                 );

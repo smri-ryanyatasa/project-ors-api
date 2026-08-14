@@ -250,70 +250,72 @@ export class PlUploadRepository {
         try {
             await transaction.begin();
 
-            const request = new sql.Request(transaction);
+            // const request = new sql.Request(transaction);
 
-            const result = await request
+            const result = await withUserContext(payload.user_name, async (request) => {
+                return await request
+                    .input('filename', sql.VarChar, payload.filename)
+                    .input('vendor_code', sql.Int, payload.vendor_code)
+                    .input('si_number', sql.VarChar, payload.sales_invoice_no)
+                    .input('branch_code', sql.Int, payload.branch_code)
+                    .input('file_size', sql.Int, payload.file_size) 
+                    .input('tran_type', sql.Int, payload.tran_type)
+                    .input('env', sql.VarChar, payload.env)
+                    .input('uploaded_by', sql.Int, payload.uploaded_by)
+                    .input('row_count', sql.Int, payload.row_count)
+                    .input('created_by', sql.Int, payload.created_by)
+                    .input('uploaded_attempts', sql.Int, payload.uploaded_attempts)
+                    .input('status', sql.Int, payload.status)
+                    .input('tran_date', sql.DateTime, payload.tran_date)
+                    .input('result', sql.VarChar, payload.result)
 
-                .input('filename', sql.VarChar, payload.filename)
-                .input('vendor_code', sql.Int, payload.vendor_code)
-                .input('si_number', sql.VarChar, payload.sales_invoice_no)
-                .input('branch_code', sql.Int, payload.branch_code)
-                .input('file_size', sql.Int, payload.file_size) 
-                .input('tran_type', sql.Int, payload.tran_type)
-                .input('env', sql.VarChar, payload.env)
-                .input('uploaded_by', sql.Int, payload.uploaded_by)
-                .input('row_count', sql.Int, payload.row_count)
-                .input('created_by', sql.Int, payload.created_by)
-                .input('uploaded_attempts', sql.Int, payload.uploaded_attempts)
-                .input('status', sql.Int, payload.status)
-                .input('tran_date', sql.DateTime, payload.tran_date)
-                .input('result', sql.VarChar, payload.result)
+                    .query(`
+                        DECLARE @Inserted TABLE (
+                            source_file_id BIGINT
+                        );
 
-                .query(`
-                    DECLARE @Inserted TABLE (
-                        source_file_id BIGINT
-                    );
+                        INSERT INTO ors_source_file
+                        (
+                            filename,
+                            vendor_code,
+                            si_number,
+                            branch_code,
+                            file_size,
+                            tran_type,
+                            env,
+                            uploaded_by,
+                            row_count,
+                            created_by,
+                            upload_attempts,
+                            status,
+                            tran_date,
+                            result
+                        )
+                        OUTPUT INSERTED.source_file_id
+                        INTO @Inserted (source_file_id)
+                        VALUES
+                        (
+                            @filename,
+                            @vendor_code,
+                            @si_number,
+                            @branch_code,
+                            @file_size,
+                            @tran_type,
+                            @env,
+                            @uploaded_by,
+                            @row_count,
+                            @created_by,
+                            @uploaded_attempts,
+                            @status,
+                            @tran_date,
+                            @result
+                        )
 
-                    INSERT INTO ors_source_file
-                    (
-                        filename,
-                        vendor_code,
-                        si_number,
-                        branch_code,
-                        file_size,
-                        tran_type,
-                        env,
-                        uploaded_by,
-                        row_count,
-                        created_by,
-                        upload_attempts,
-                        status,
-                        tran_date,
-                        result
-                    )
-                    OUTPUT INSERTED.source_file_id
-                    INTO @Inserted (source_file_id)
-                    VALUES
-                    (
-                        @filename,
-                        @vendor_code,
-                        @si_number,
-                        @branch_code,
-                        @file_size,
-                        @tran_type,
-                        @env,
-                        @uploaded_by,
-                        @row_count,
-                        @created_by,
-                        @uploaded_attempts,
-                        @status,
-                        @tran_date,
-                        @result
-                    )
-
-                    SELECT source_file_id
-                    FROM @Inserted;
-                `);
+                        SELECT source_file_id
+                        FROM @Inserted;
+                    `);
+            }, transaction)
+            
 
             const sourceFileId = Number(result.recordset[0]?.source_file_id);
             
@@ -408,31 +410,34 @@ export class PlUploadRepository {
 
             await this.deletePackingListBySourceFileId(payload.source_file_id, transaction);
 
-            const updateRequest = new sql.Request(transaction);
+            // const updateRequest = new sql.Request(transaction);
+            
+            const result = await withUserContext(payload.user_name, async (updateRequest) => {
+                return await updateRequest
 
-            const result = await updateRequest
+                    .input('source_file_id', sql.BigInt, payload.source_file_id)
+                    .input('result', sql.VarChar, payload.result)
+                    .input('uploaded_date', sql.DateTime, payload.uploaded_date)
+                    .input('tran_date', sql.DateTime, payload.tran_date)
+                    .input('upload_attempts', sql.Int, payload.uploaded_attempts)
+                    .input('row_count', sql.Int, payload.row_count)
+                    .input('file_size', sql.Int, payload.file_size) 
+                    .input('status', sql.Int, payload.status) 
 
-                .input('source_file_id', sql.BigInt, payload.source_file_id)
-                .input('result', sql.VarChar, payload.result)
-                .input('uploaded_date', sql.DateTime, payload.uploaded_date)
-                .input('tran_date', sql.DateTime, payload.tran_date)
-                .input('upload_attempts', sql.Int, payload.uploaded_attempts)
-                .input('row_count', sql.Int, payload.row_count)
-                .input('file_size', sql.Int, payload.file_size) 
-                .input('status', sql.Int, payload.status) 
-
-                .query(`
-                    UPDATE ors_source_file
-                    SET 
-                        result = @result,
-                        uploaded_date = @uploaded_date,
-                        tran_date = @tran_date,
-                        upload_attempts = @upload_attempts,
-                        row_count = @row_count,
-                        file_size = @file_size,
-                        status = @status
-                    WHERE source_file_id = @source_file_id;
-                `);
+                    .query(`
+                        UPDATE ors_source_file
+                        SET 
+                            result = @result,
+                            uploaded_date = @uploaded_date,
+                            tran_date = @tran_date,
+                            upload_attempts = @upload_attempts,
+                            row_count = @row_count,
+                            file_size = @file_size,
+                            status = @status
+                        WHERE source_file_id = @source_file_id;
+                    `);
+            }, transaction)
+            
 
             const sourceFileId = Number(payload.source_file_id);
             
