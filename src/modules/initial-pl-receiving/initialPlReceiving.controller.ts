@@ -106,7 +106,6 @@ export class InitialPlReceivingController {
             return c.json(response);
 
         }  catch(error) {
-            console.log(error)
             return c.json(
                 {
                     status: 'error',
@@ -295,5 +294,101 @@ export class InitialPlReceivingController {
         const data = await this.service.getPlsFiles({branchId, env, user_name});
 
         return c.json(data)
+    }
+
+    async rowsUpdate(c: Context): Promise<Response> {
+        try {
+            const body = await c.req.json();
+
+            const pl_id = body.pl_id;
+            const actual_received = body.actual_received;
+            const status = body.actual_received == null ? '1' : '2' // received status
+            const received_date = new Date();
+            const received_by = 'User' // sample, need to change soon
+
+            await this.service.rowsUpdate({pl_id, actual_received, status, received_date, received_by});
+
+            return c.json({
+                status: 'success',
+                message: 'Updated successfully'
+            });
+        } catch (error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async getHasZero(c: Context): Promise<Response> {
+        try {
+            const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
+
+            const user_name = user.user_name;
+            const env = c.req.query('env') as string;
+            const branch = Number(c.req.query('branch'));
+            const filename = c.req.query('filename') as string;
+            const vendor_code = c.req.query('vendor_code') as string;
+            const si_number = Number(c.req.query('si_number'));
+
+            // Filter
+            const search = c.req.query('search') || null;
+            const filterModelParam = c.req.query('filterModel') || null;
+            const sortModelParam = c.req.query('sortModel');
+
+            const filterModel = filterModelParam;
+            
+            const sortModel = sortModelParam
+            ? JSON.parse(sortModelParam)
+            : [];
+            
+            const sortColum = sortModel[0].field;
+            const sortOrder = sortModel[0].sort;
+
+            const response = await this.service.getHasZero({
+                user_name, 
+                env, 
+                branch,
+                filename,
+                vendor_code,
+                si_number,
+                search, 
+                sortColum, 
+                sortOrder,
+                filterModel
+            });
+                
+            return c.json(response);
+        } catch (error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async toConfirm(c: Context) {
+        const rows = await c.req.json();
+        const status = '3' // received status
+
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return c.json({
+                status: 'success',
+                message: 'Nothin to update.'
+            });
+        }
+
+        await this.service.toConfirm({rows, status});
+
+        return c.json({
+            status: 'success',
+            message: 'Updated successfully'
+        });
     }
 }
