@@ -1,13 +1,12 @@
 import { Context } from "hono";
 import ExcelJS from 'exceljs';
 
-import { InitialPlReceivingService } from "./initialPlReceiving.service";
+import { FinalPlReceivingService } from "./finalPlReceiving.service";
 
-export class InitialPlReceivingController {
-    private service = new InitialPlReceivingService();
+export class FinalPlReceivingController {
+    private service = new FinalPlReceivingService();
 
-
-    async getInitialPlReceiving(c: Context): Promise<Response> {
+    async getFinalPlReceiving(c: Context): Promise<Response> {
        try {
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
@@ -36,7 +35,7 @@ export class InitialPlReceivingController {
             const sortColum = sortModel[0].field;
             const sortOrder = sortModel[0].sort;
 
-            const response = await this.service.getInitialPlReceiving({
+            const response = await this.service.getFinalPlReceiving({
                 user_name, 
                 env, 
                 branch,
@@ -50,7 +49,7 @@ export class InitialPlReceivingController {
                 sortOrder,
                 filterModel
             });
-            
+
             return c.json(response);
 
         }  catch(error) {
@@ -64,7 +63,7 @@ export class InitialPlReceivingController {
         }
     }
 
-    async getInitialPlReceivingStatus(c: Context): Promise<Response> {
+    async getFinalPlReceivingStatus(c: Context): Promise<Response> {
        try {
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
@@ -90,7 +89,7 @@ export class InitialPlReceivingController {
             const sortColum = sortModel[0].field;
             const sortOrder = sortModel[0].sort;
 
-            const response = await this.service.getInitialPlReceivingStatus({
+            const response = await this.service.getFinalPlReceivingStatus({
                 user_name, 
                 env, 
                 branch,
@@ -161,10 +160,15 @@ export class InitialPlReceivingController {
                 'MMS SKU Name',
                 'Size/Dim',
                 'UOM',
-                'Actual Received',
-                'Status',
-                'Received by',
-                'Date/Time Received'
+                'Pl Qty',
+                'Initial Received Qty',
+                'PL-Initial Discrepancy',
+                'Final Received Qty',
+                'Initial-Final Discrepancy',
+                'Inital Received by',
+                'Date/Time Initially Received',
+                'Final Received Qty Updated by',
+                'Date/Time of Updated Final Received Qty'
             ];
 
             const csvRows = [
@@ -177,10 +181,15 @@ export class InitialPlReceivingController {
                         data.mms_sku_name,
                         data.size,
                         data.uom,
-                        data.actual_received,
-                        data.status,
-                        data.received_by,
-                        data.received_date
+                        data.pl_qty,
+                        data.initial_qty,
+                        data.pl_initial_discrepancy,
+                        data.final_qty,
+                        data.initial_final_discrepancy,
+                        data.initial_received_by,
+                        data.initial_received_date,
+                        data.final_received_by,
+                        data.final_received_date
                     ]
                     .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
                     .join(',')
@@ -255,10 +264,15 @@ export class InitialPlReceivingController {
             { header: 'MMS SKU Name', key: 'mms_sku_name', },
             { header: 'Size/Dim', key: 'size',},
             { header: 'UOM', key: 'uom',},
-            { header: 'Actual Received', key: 'actual_received',},
-            { header: 'Status', key: 'status',},
-            { header: 'Received by', key: 'received_by',},
-            { header: 'Date/Time Received', key: 'received_date',},
+            { header: 'Pl Qty', key: 'pl_qty',},
+            { header: 'Initial Received Qty', key: 'initial_qty',},
+            { header: 'PL-Initial Discrepancy', key: 'pl_initial_discrepancy',},
+            { header: 'Final Received Qty', key: 'final_qty',},
+            { header: 'Initial-Final Discrepancy', key: 'initial_final_discrepancy',},
+            { header: 'Inital Received by', key: 'initial_received_by',},
+            { header: 'Date/Time Initially Received', key: 'initial_received_date',},
+            { header: 'Final Received Qty Updated by', key: 'final_received_by',},
+            { header: 'Date/Time of Updated Final Received Qty', key: 'final_received_date',},
         ];
 
         worksheet.addRows(response);
@@ -276,58 +290,32 @@ export class InitialPlReceivingController {
         });
     }
 
-    async plFiles(c: Context): Promise<Response> {
-        const branchId = Number(c.req.param('branch_id'));
-
-        const filenames = await this.service.plFiles(branchId);
-
-        return c.json(filenames);
-    }
-
-    async getPlsFiles(c: Context): Promise<Response> {
-        const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
-
-        const user_name = user.user_name;
-        const env = c.req.query('env') as string;
-        const branchId = Number(c.req.query('branch_id'));
-        const status = Number(c.req.query('type'));
-
-        const data = await this.service.getPlsFiles({branchId, env, user_name, status});
-
-        return c.json(data)
-    }
-
     async rowsUpdate(c: Context): Promise<Response> {
-        try {
-            const user = c.get('user')
-            const body = await c.req.json();
-            
-            const pl_id = body.pl_id;
-            const actual_received = body.actual_received;
-            const status = body.actual_received == null ? '1' : '2' // received status
-            const received_date = new Date();
-            const received_by = user.user_id // sample, need to change soon
+        const user = c.get('user')
+        const rows = await c.req.json();
 
-            await this.service.rowsUpdate({pl_id, actual_received, status, received_date, received_by});
+        const received_by = user.user_id
 
+        if (!Array.isArray(rows) || rows.length === 0) {
             return c.json({
                 status: 'success',
-                message: 'Updated successfully'
+                message: 'Nothing to update.'
             });
-        } catch (error) {
-            return c.json(
-                {
-                    status: 'error',
-                    message: 'Something went wrong.',
-                },
-                500
-            );
         }
+
+        await this.service.rowsUpdate({rows, received_by});
+
+        return c.json({
+            status: 'success',
+            message: 'Updated successfully'
+        });
     }
 
-    async getHasZero(c: Context): Promise<Response> {
-        try {
+    async toApproved(c: Context): Promise<Response> {
+       try {
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
+
+            const last_update_by = user.user_id;
 
             const user_name = user.user_name;
             const env = c.req.query('env') as string;
@@ -335,6 +323,7 @@ export class InitialPlReceivingController {
             const filename = c.req.query('filename') as string;
             const vendor_code = c.req.query('vendor_code') as string;
             const si_number = Number(c.req.query('si_number'));
+            const status = '4'; // Approved Receipt
 
             // Filter
             const search = c.req.query('search') || null;
@@ -347,10 +336,12 @@ export class InitialPlReceivingController {
             ? JSON.parse(sortModelParam)
             : [];
             
+            const queries = c.req.queries();
+  
             const sortColum = sortModel[0].field;
             const sortOrder = sortModel[0].sort;
 
-            const response = await this.service.getHasZero({
+            const response = await this.service.toApproved({
                 user_name, 
                 env, 
                 branch,
@@ -360,11 +351,15 @@ export class InitialPlReceivingController {
                 search, 
                 sortColum, 
                 sortOrder,
-                filterModel
+                filterModel,
+                status,
+                last_update_by
             });
-                
+
             return c.json(response);
-        } catch (error) {
+
+        }  catch(error) {
+            console.log(error)
             return c.json(
                 {
                     status: 'error',
@@ -374,23 +369,4 @@ export class InitialPlReceivingController {
             );
         }
     }
-
-    async toConfirm(c: Context) {
-        const rows = await c.req.json();
-        const status = '3' // Initial Receipt
-
-        if (!Array.isArray(rows) || rows.length === 0) {
-            return c.json({
-                status: 'success',
-                message: 'Nothing to update.'
-            });
-        }
-        
-        await this.service.toConfirm({rows, status});
-
-        return c.json({
-            status: 'success',
-            message: 'Updated successfully'
-        });
-    }
-}
+ }

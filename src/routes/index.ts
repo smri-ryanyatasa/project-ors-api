@@ -8,6 +8,7 @@ import plMasterfileRoute from '../modules/pl-masterfile/plMasterfile.route';
 import branchRoute from '../modules/branch/branch.route';
 import itemRoute from '../modules/item/item.route';
 import initialPlReceivingRoute from '../modules/initial-pl-receiving/initialPlReceiving.route';
+import finalPlReceivingRoute from '../modules/final-pl-receiving/finalPlReceiving.route';
 
 const routes = new Hono();
 
@@ -19,5 +20,6 @@ routes.route('/pl-masterfile', plMasterfileRoute);
 routes.route('/branch', branchRoute);
 routes.route('/item', itemRoute);
 routes.route('/initial-pl-receiving', initialPlReceivingRoute);
+routes.route('/final-pl-receiving', finalPlReceivingRoute);
 
 export default routes;
