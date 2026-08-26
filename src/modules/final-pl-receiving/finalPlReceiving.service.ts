@@ -1,11 +1,10 @@
-import { InitialPlReceivingRepository } from "./initialPlReceiving.repository";
+import { FinalPlReceivingRepository } from "./finalPlReceiving.repository";
+import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove } from './finalPlReceiving.types';
 
-import type { InitialPlReceiving, InitialPlReceivingHasZero, InitialPlReceivingStatus, InitialPlReceivingCsvExport, InitialPlReceivingExcelExport, RowsUpdate } from './initialPlReceiving.types';
+export class FinalPlReceivingService {
+     private repository = new FinalPlReceivingRepository();
 
-export class InitialPlReceivingService {
-     private repository = new InitialPlReceivingRepository();
-
-    async getInitialPlReceiving({
+    async getFinalPlReceiving({
         user_name,
         env,
         branch,
@@ -18,8 +17,8 @@ export class InitialPlReceivingService {
         sortColum, 
         sortOrder,
         filterModel
-    }: InitialPlReceiving) {
-        const response = await this.repository.initialPlReceiving({
+    }: FinalPlReceiving) {
+        const response = await this.repository.finalPlReceiving({
             user_name, 
             env, 
             branch,
@@ -37,7 +36,7 @@ export class InitialPlReceivingService {
         return response;
     }
 
-    async getInitialPlReceivingStatus({
+    async getFinalPlReceivingStatus({
         user_name, 
         env, 
         branch,
@@ -48,8 +47,8 @@ export class InitialPlReceivingService {
         sortColum, 
         sortOrder,
         filterModel
-    }: InitialPlReceivingStatus) {
-        const response = await this.repository.initialPlReceivingStatus({
+    }: FinalPlReceivingStatus) {
+        const response = await this.repository.finalPlReceivingStatus({
             user_name, 
             env, 
             branch,
@@ -76,7 +75,7 @@ export class InitialPlReceivingService {
         sortColum, 
         sortOrder,
         filterModel
-    }: InitialPlReceivingCsvExport) {
+    }: FinalPlReceivingCsvExport) {
         const response = await this.repository.csvExport({
             user_name, 
             env, 
@@ -104,7 +103,7 @@ export class InitialPlReceivingService {
         sortColum, 
         sortOrder,
         filterModel
-    }: InitialPlReceivingExcelExport) {
+    }: FinalPlReceivingExcelExport) {
         const response = await this.repository.excelExport({
             user_name, 
             env, 
@@ -120,25 +119,14 @@ export class InitialPlReceivingService {
 
         return response;
     }
-    
-    async plFiles(branch_id: number) {
-        const response = await this.repository.plFiles(branch_id);
-        
-        return response
-    }
 
-    async getPlsFiles({branchId, env, user_name, status}: {branchId: number, env: string, user_name: string, status: number}) {
-        const response = await this.repository.getPlsFiles({branchId, env, user_name, status});
-
-        return response;
-    }
-
-    async rowsUpdate(payload: RowsUpdate) {
+    async rowsUpdate(payload: any) {
         const response = await this.repository.rowsUpdate(payload);
+
         return response;
     }
-
-    async getHasZero({
+    
+    async toApproved({ 
         user_name,
         env,
         branch,
@@ -148,9 +136,11 @@ export class InitialPlReceivingService {
         search, 
         sortColum, 
         sortOrder,
-        filterModel
-    }: InitialPlReceivingHasZero) {
-        const response = await this.repository.hasZero({
+        filterModel,
+        status,
+        last_update_by
+    }: ToApprove) {
+        const response = await this.repository.toApproved({
             user_name,
             env,
             branch,
@@ -160,14 +150,16 @@ export class InitialPlReceivingService {
             search, 
             sortColum, 
             sortOrder,
-            filterModel
+            filterModel,
+            status,
+            last_update_by
         });
 
-        return response;
+        const action = await this.repository.approvedUpdate(response, status, last_update_by);
+
+        return action;
     }
 
-    async toConfirm(payload: any) {
-        const response = await this.repository.toConfirm(payload);
-        return response;
-    }
+
+
 }
