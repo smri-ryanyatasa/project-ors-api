@@ -9,6 +9,7 @@ import branchRoute from '../modules/branch/branch.route';
 import itemRoute from '../modules/item/item.route';
 import initialPlReceivingRoute from '../modules/initial-pl-receiving/initialPlReceiving.route';
 import finalPlReceivingRoute from '../modules/final-pl-receiving/finalPlReceiving.route';
+import plAgingReportRoute from '../modules/pl-aging-report/plAgingReport.route';
 
 const routes = new Hono();
 
@@ -21,5 +22,6 @@ routes.route('/branch', branchRoute);
 routes.route('/item', itemRoute);
 routes.route('/initial-pl-receiving', initialPlReceivingRoute);
 routes.route('/final-pl-receiving', finalPlReceivingRoute);
+routes.route('/pl-ageing-report', plAgingReportRoute);
 
 export default routes;
