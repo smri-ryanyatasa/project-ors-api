@@ -70,7 +70,8 @@ export interface RowsUpdate {
     actual_received: number,
     status: string,
     received_date: Date,
-    received_by: string
+    received_by: string,
+    source_file_id: string
 }
 
 

@@ -120,7 +120,7 @@ export class UserController {
                 return c.json(
                     {
                         status: 'error',
-                        message: error.message,
+                        message: `${error.message} Please refresh the list.`,
                     },
                     404
                 );
@@ -154,7 +154,7 @@ export class UserController {
                 return c.json(
                     {
                         status: 'error',
-                        message: error.message,
+                        message: `${error.message} Please refresh the list.`,
                     },
                     404
                 );

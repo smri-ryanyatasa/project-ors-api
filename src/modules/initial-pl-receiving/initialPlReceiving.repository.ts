@@ -228,6 +228,21 @@ export class InitialPlReceivingRepository {
         return result.recordset ?? null;
     }
 
+    async checkIfAlreadyConfirmedReceipt(source_file_id: string) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('source_file_id', sql.VarChar, source_file_id)
+            .query(`
+                SELECT * FROM ors_source_file 
+                    WHERE source_file_id = @source_file_id
+                    AND status = 3
+            `)
+
+        return result.recordset;
+    }
+
     async rowsUpdate(payload: RowsUpdate): Promise<void> {
         const db = await getDb();
 
