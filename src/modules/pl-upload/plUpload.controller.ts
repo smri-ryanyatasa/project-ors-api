@@ -375,7 +375,7 @@ export class PlUploadController {
             return c.json(
                 {
                     status: 'error',
-                    message: 'Something went wrong.',
+                    message: 'This item may have already been deleted. Please refresh the list.',
                 },
                 500
             );

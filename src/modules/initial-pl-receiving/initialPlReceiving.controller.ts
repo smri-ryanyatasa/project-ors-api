@@ -5,7 +5,7 @@ import { InitialPlReceivingService } from "./initialPlReceiving.service";
 
 export class InitialPlReceivingController {
     private service = new InitialPlReceivingService();
-
+    private errorMessage = 'Something went wrong. Please try again or contact your administrator.';
 
     async getInitialPlReceiving(c: Context): Promise<Response> {
        try {
@@ -308,7 +308,9 @@ export class InitialPlReceivingController {
             const received_date = new Date();
             const received_by = user.user_id
 
-            await this.service.rowsUpdate({pl_id, actual_received, status, received_date, received_by});
+            const source_file_id = body.source_file_id;
+
+            await this.service.rowsUpdate({pl_id, actual_received, status, received_date, received_by, source_file_id});
 
             return c.json({
                 status: 'success',
@@ -318,7 +320,9 @@ export class InitialPlReceivingController {
             return c.json(
                 {
                     status: 'error',
-                    message: 'Something went wrong.',
+                    message: error instanceof Error
+                        ? error.message
+                        : this.errorMessage,  
                 },
                 500
             );

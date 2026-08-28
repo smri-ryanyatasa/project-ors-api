@@ -134,6 +134,13 @@ export class InitialPlReceivingService {
     }
 
     async rowsUpdate(payload: RowsUpdate) {
+        const check = await this.repository.checkIfAlreadyConfirmedReceipt(payload.source_file_id);
+        console.log(check.length)
+        if (check.length > 0) {
+            console.log(check.length)
+            throw new Error('Some items have already been submitted and cannot be edited. Please refresh the list.');
+        }
+
         const response = await this.repository.rowsUpdate(payload);
         return response;
     }
