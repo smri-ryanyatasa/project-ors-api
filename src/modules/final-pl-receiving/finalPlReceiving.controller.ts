@@ -5,6 +5,8 @@ import { FinalPlReceivingService } from "./finalPlReceiving.service";
 
 export class FinalPlReceivingController {
     private service = new FinalPlReceivingService();
+    private errorMessage = 'Something went wrong. Please try again or contact your administrator.';
+    private exportErrorMessage = 'Failed to download the file. Please try again.';
 
     async getFinalPlReceiving(c: Context): Promise<Response> {
        try {
@@ -209,7 +211,9 @@ export class FinalPlReceivingController {
             return c.json(
                 {
                     status: 'error',
-                    message: 'Something went wrong.',
+                    message: error instanceof Error
+                        ? error.message
+                        : this.exportErrorMessage,  
                 },
                 500
             );
@@ -217,98 +221,123 @@ export class FinalPlReceivingController {
     }
 
     async excelExport(c: Context): Promise<Response> {
-        const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
+        try {
+            const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
-        const user_name = user.user_name;
-        const env = c.req.query('env') as string;
-        const branch = Number(c.req.query('branch'));
-        const filename = c.req.query('filename') as string;
-        const vendor_code = c.req.query('vendor_code') as string;
-        const si_number = Number(c.req.query('si_number'));
+            const user_name = user.user_name;
+            const env = c.req.query('env') as string;
+            const branch = Number(c.req.query('branch'));
+            const filename = c.req.query('filename') as string;
+            const vendor_code = c.req.query('vendor_code') as string;
+            const si_number = Number(c.req.query('si_number'));
+            
+            // Filter
+            const search = c.req.query('search') || null;
+            const filterModelParam = c.req.query('filterModel') || null;
+            const sortModelParam = c.req.query('sortModel');
+
+            const filterModel = filterModelParam;
+            
+            const sortModel = sortModelParam
+            ? JSON.parse(sortModelParam)
+            : [];
+            
+            const sortColum = sortModel[0].field;
+            const sortOrder = sortModel[0].sort;
+
+            const response = await this.service.excelExport({
+                user_name, 
+                env, 
+                branch,
+                filename,
+                vendor_code,
+                si_number,
+                search, 
+                sortColum, 
+                sortOrder,
+                filterModel
+            });
+
+            const workbook = new ExcelJS.Workbook();
+
+            const worksheet = workbook.addWorksheet('PLUploadList');
+
+            worksheet.columns = [
+                { header: 'Material Code', key: 'material_code', },
+                { header: 'Material Description', key: 'material_name', },
+                { header: 'MMS SKU Code', key: 'mms_sku_code', },
+                { header: 'MMS SKU Name', key: 'mms_sku_name', },
+                { header: 'Size/Dim', key: 'size',},
+                { header: 'UOM', key: 'uom',},
+                { header: 'Pl Qty', key: 'pl_qty',},
+                { header: 'Initial Received Qty', key: 'initial_qty',},
+                { header: 'PL-Initial Discrepancy', key: 'pl_initial_discrepancy',},
+                { header: 'Final Received Qty', key: 'final_qty',},
+                { header: 'Initial-Final Discrepancy', key: 'initial_final_discrepancy',},
+                { header: 'Inital Received by', key: 'initial_received_by',},
+                { header: 'Date/Time Initially Received', key: 'initial_received_date',},
+                { header: 'Final Received Qty Updated by', key: 'final_received_by',},
+                { header: 'Date/Time of Updated Final Received Qty', key: 'final_received_date',},
+            ];
+
+            worksheet.addRows(response);
+
+            const buffer = await workbook.xlsx.writeBuffer();
+
+            return new Response(buffer, {
+                headers: {
+                    'Content-Type':
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+
+                    'Content-Disposition':
+                        'attachment; filename="Receiving Report.xlsx"',
+                },
+            });
+        } catch (error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: error instanceof Error
+                        ? error.message
+                        : this.exportErrorMessage,  
+                },
+                500
+            );
+        }
         
-        // Filter
-        const search = c.req.query('search') || null;
-        const filterModelParam = c.req.query('filterModel') || null;
-        const sortModelParam = c.req.query('sortModel');
-
-        const filterModel = filterModelParam;
-        
-        const sortModel = sortModelParam
-        ? JSON.parse(sortModelParam)
-        : [];
-        
-        const sortColum = sortModel[0].field;
-        const sortOrder = sortModel[0].sort;
-
-        const response = await this.service.excelExport({
-            user_name, 
-            env, 
-            branch,
-            filename,
-            vendor_code,
-            si_number,
-            search, 
-            sortColum, 
-            sortOrder,
-            filterModel
-        });
-
-        const workbook = new ExcelJS.Workbook();
-
-        const worksheet = workbook.addWorksheet('PLUploadList');
-
-        worksheet.columns = [
-            { header: 'Material Code', key: 'material_code', },
-            { header: 'Material Description', key: 'material_name', },
-            { header: 'MMS SKU Code', key: 'mms_sku_code', },
-            { header: 'MMS SKU Name', key: 'mms_sku_name', },
-            { header: 'Size/Dim', key: 'size',},
-            { header: 'UOM', key: 'uom',},
-            { header: 'Pl Qty', key: 'pl_qty',},
-            { header: 'Initial Received Qty', key: 'initial_qty',},
-            { header: 'PL-Initial Discrepancy', key: 'pl_initial_discrepancy',},
-            { header: 'Final Received Qty', key: 'final_qty',},
-            { header: 'Initial-Final Discrepancy', key: 'initial_final_discrepancy',},
-            { header: 'Inital Received by', key: 'initial_received_by',},
-            { header: 'Date/Time Initially Received', key: 'initial_received_date',},
-            { header: 'Final Received Qty Updated by', key: 'final_received_by',},
-            { header: 'Date/Time of Updated Final Received Qty', key: 'final_received_date',},
-        ];
-
-        worksheet.addRows(response);
-
-        const buffer = await workbook.xlsx.writeBuffer();
-
-        return new Response(buffer, {
-            headers: {
-                'Content-Type':
-                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-
-                'Content-Disposition':
-                    'attachment; filename="Receiving Report.xlsx"',
-            },
-        });
     }
 
     async rowsUpdate(c: Context): Promise<Response> {
-        const user = c.get('user')
-        const rows = await c.req.json();
+        try {
+            const user = c.get('user')
+            const rows = await c.req.json();
+            
+            const received_by = user.user_id
 
-        const received_by = user.user_id
+            if (!Array.isArray(rows) || rows.length === 0) {
+                return c.json({
+                    status: 'success',
+                    message: 'Nothing to update.'
+                });
+            }
 
-        if (!Array.isArray(rows) || rows.length === 0) {
+            await this.service.rowsUpdate({rows, received_by});
+
             return c.json({
                 status: 'success',
-                message: 'Nothing to update.'
+                message: 'Updated successfully.'
             });
+        } catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: error instanceof Error
+                        ? error.message
+                        : this.errorMessage,  
+                },
+                500
+            );
         }
-
-        await this.service.rowsUpdate({rows, received_by});
-
-        return c.json({
-            status: 'success',
-            message: 'Updated successfully'
-        });
     }
 
     async toApproved(c: Context): Promise<Response> {
@@ -359,11 +388,10 @@ export class FinalPlReceivingController {
             return c.json(response);
 
         }  catch(error) {
-            console.log(error)
             return c.json(
                 {
                     status: 'error',
-                    message: 'Something went wrong.',
+                    message: this.errorMessage,
                 },
                 500
             );

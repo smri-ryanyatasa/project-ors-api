@@ -1,22 +1,22 @@
 import { Context } from "hono";
 import ExcelJS from 'exceljs';
 
-import { InitialPlReceivingService } from "./initialPlReceiving.service";
+import { ReceivingReportService } from "./receivingReport.service";
 
-export class InitialPlReceivingController {
-    private service = new InitialPlReceivingService();
+export class ReceivingReportController {
+    private service = new ReceivingReportService();
 
-
-    async getInitialPlReceiving(c: Context): Promise<Response> {
+    async getReceivingReport(c: Context): Promise<Response> {
        try {
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
             const user_name = user.user_name;
             const env = c.req.query('env') as string;
             const branch = Number(c.req.query('branch'));
-            const filename = c.req.query('filename') as string;
-            const vendor_code = c.req.query('vendor_code') as string;
-            const si_number = Number(c.req.query('si_number'));
+            const initialReceiptStartDate = c.req.query('initialReceiptStartDate') as string;
+            const initialReceiptEndDate = c.req.query('initialReceiptEndDate') as string;
+            const finalReceiptStartDate = c.req.query('finalReceiptStartDate') as string;
+            const finalReceiptEndDate = c.req.query('finalReceiptEndDate') as string;
 
             // Filter
             const page = Number(c.req.query('page') || 1);
@@ -36,13 +36,14 @@ export class InitialPlReceivingController {
             const sortColum = sortModel[0].field;
             const sortOrder = sortModel[0].sort;
 
-            const response = await this.service.getInitialPlReceiving({
+            const response = await this.service.getReceivingReport({
                 user_name, 
                 env, 
                 branch,
-                filename,
-                vendor_code,
-                si_number,
+                initialReceiptStartDate,
+                initialReceiptEndDate,
+                finalReceiptStartDate,
+                finalReceiptEndDate,
                 page, 
                 pageSize, 
                 search, 
@@ -50,7 +51,7 @@ export class InitialPlReceivingController {
                 sortOrder,
                 filterModel
             });
-            
+
             return c.json(response);
 
         }  catch(error) {
@@ -64,16 +65,17 @@ export class InitialPlReceivingController {
         }
     }
 
-    async getInitialPlReceivingStatus(c: Context): Promise<Response> {
+    async getReceivingReportStatus(c: Context): Promise<Response> {
        try {
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
             const user_name = user.user_name;
             const env = c.req.query('env') as string;
             const branch = Number(c.req.query('branch'));
-            const filename = c.req.query('filename') as string;
-            const vendor_code = c.req.query('vendor_code') as string;
-            const si_number = Number(c.req.query('si_number'));
+            const initialReceiptStartDate = c.req.query('initialReceiptStartDate') as string;
+            const initialReceiptEndDate = c.req.query('initialReceiptEndDate') as string;
+            const finalReceiptStartDate = c.req.query('finalReceiptStartDate') as string;
+            const finalReceiptEndDate = c.req.query('finalReceiptEndDate') as string;
 
             // Filter
             const search = c.req.query('search') || null;
@@ -90,13 +92,14 @@ export class InitialPlReceivingController {
             const sortColum = sortModel[0].field;
             const sortOrder = sortModel[0].sort;
 
-            const response = await this.service.getInitialPlReceivingStatus({
+            const response = await this.service.getReceivingReportStatus({
                 user_name, 
                 env, 
                 branch,
-                filename,
-                vendor_code,
-                si_number,
+                initialReceiptStartDate,
+                initialReceiptEndDate,
+                finalReceiptStartDate,
+                finalReceiptEndDate,
                 search, 
                 sortColum, 
                 sortOrder,
@@ -123,9 +126,10 @@ export class InitialPlReceivingController {
             const user_name = user.user_name;
             const env = c.req.query('env') as string;
             const branch = Number(c.req.query('branch'));
-            const filename = c.req.query('filename') as string;
-            const vendor_code = c.req.query('vendor_code') as string;
-            const si_number = Number(c.req.query('si_number'));
+            const initialReceiptStartDate = c.req.query('initialReceiptStartDate') as string;
+            const initialReceiptEndDate = c.req.query('initialReceiptEndDate') as string;
+            const finalReceiptStartDate = c.req.query('finalReceiptStartDate') as string;
+            const finalReceiptEndDate = c.req.query('finalReceiptEndDate') as string;
             
             // Filter
             const search = c.req.query('search') || null;
@@ -145,9 +149,10 @@ export class InitialPlReceivingController {
                 user_name, 
                 env, 
                 branch,
-                filename,
-                vendor_code,
-                si_number,
+                initialReceiptStartDate,
+                initialReceiptEndDate,
+                finalReceiptStartDate,
+                finalReceiptEndDate,
                 search, 
                 sortColum, 
                 sortOrder,
@@ -155,32 +160,58 @@ export class InitialPlReceivingController {
             });
 
             const headers = [
+                'PL Filename',
+                'Sales Invoice',
+                'Branch Code',
+                'Branch Name',
                 'Material Code',
                 'Material Description',
                 'MMS SKU Code',
                 'MMS SKU Name',
+                'Vendor Code',
+                'Vendor Name',
                 'Size/Dim',
                 'UOM',
-                'Actual Received',
-                'Status',
-                'Received by',
-                'Date/Time Received'
+                'PL Qty',
+                'Initial Received Qty',
+                'Final Received Qty',
+                'Initial Received by',
+                'Date/Time Initially Received',
+                'Initial Receipt Confirmed by',
+                'Date/Time Initially Receipt Confirmed',
+                'Final Received Qty Updated by',
+                'Date/Time of Updated Final Received Qty',
+                'Final Received Approved by',
+                'Date/Time of Final Receipt Approved'
             ];
 
             const csvRows = [
                 headers.join(','),
                 ...response.map((data) =>
                     [
+                        data.filename,
+                        data.sales_invoice_no,
+                        data.branch_code,
+                        data.branch_name,
                         data.material_code,
                         data.material_name,
                         data.mms_sku_code,
                         data.mms_sku_name,
+                        data.vendor_code,
+                        data.vendor_name,
                         data.size,
                         data.uom,
-                        data.actual_received,
-                        data.status,
-                        data.received_by,
-                        data.received_date
+                        data.pl_qty,
+                        data.initial_qty,
+                        data.final_qty,
+                        data.initial_received_by,
+                        data.initial_received_date,
+                        data.confirmed_receipt_by,
+                        data.confirmed_receipt_date,
+                        data.final_received_by,
+                        data.final_received_date,
+                        data.approved_receipt_by,
+                        data.approved_receipt_date
                     ]
                     .map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`)
                     .join(',')
@@ -208,14 +239,16 @@ export class InitialPlReceivingController {
     }
 
     async excelExport(c: Context): Promise<Response> {
+        // const user = c.get('user');
         const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
         const user_name = user.user_name;
         const env = c.req.query('env') as string;
         const branch = Number(c.req.query('branch'));
-        const filename = c.req.query('filename') as string;
-        const vendor_code = c.req.query('vendor_code') as string;
-        const si_number = Number(c.req.query('si_number'));
+        const initialReceiptStartDate = c.req.query('initialReceiptStartDate') as string;
+        const initialReceiptEndDate = c.req.query('initialReceiptEndDate') as string;
+        const finalReceiptStartDate = c.req.query('finalReceiptStartDate') as string;
+        const finalReceiptEndDate = c.req.query('finalReceiptEndDate') as string;
         
         // Filter
         const search = c.req.query('search') || null;
@@ -235,9 +268,10 @@ export class InitialPlReceivingController {
             user_name, 
             env, 
             branch,
-            filename,
-            vendor_code,
-            si_number,
+            initialReceiptStartDate,
+            initialReceiptEndDate,
+            finalReceiptStartDate,
+            finalReceiptEndDate,
             search, 
             sortColum, 
             sortOrder,
@@ -249,16 +283,30 @@ export class InitialPlReceivingController {
         const worksheet = workbook.addWorksheet('PLUploadList');
 
         worksheet.columns = [
+            { header: 'PL Filename', key: 'filename', },
+            { header: 'Sales Invoice', key: 'sales_invoice_no', },
+            { header: 'Branch Code', key: 'branch_code', },
+            { header: 'Branch Name', key: 'branch_name', },
             { header: 'Material Code', key: 'material_code', },
             { header: 'Material Description', key: 'material_name', },
             { header: 'MMS SKU Code', key: 'mms_sku_code', },
             { header: 'MMS SKU Name', key: 'mms_sku_name', },
+            { header: 'Vendor Code', key: 'vendor_code', },
+            { header: 'Vendor Name', key: 'vendor_name',},
             { header: 'Size/Dim', key: 'size',},
             { header: 'UOM', key: 'uom',},
-            { header: 'Actual Received', key: 'actual_received',},
-            { header: 'Status', key: 'status',},
-            { header: 'Received by', key: 'received_by',},
-            { header: 'Date/Time Received', key: 'received_date',},
+            { header: 'PL Qty', key: 'pl_qty',},
+            { header: 'Initial Received Qty', key: 'initial_qty',},
+            { header: 'Final Received Qty', key: 'final_qty',},
+            { header: 'Initial Received by', key: 'initial_received_by',},
+            { header: 'Date/Time Initially Received', key: 'initial_received_date',},
+            { header: 'Initial Receipt Confirmed by', key: 'confirmed_receipt_by',},
+            { header: 'Date/Time Initially Receipt Confirmed', key: 'confirmed_receipt_date',},
+            { header: 'Final Received Qty Updated by', key: 'final_received_by',},
+            { header: 'Date/Time of Updated Final Received Qty', key: 'final_received_date',},
+            { header: 'Final Received Approved by', key: 'approved_receipt_by',},
+            { header: 'Date/Time of Final Receipt Approved', key: 'approved_receipt_date',},
+
         ];
 
         worksheet.addRows(response);
@@ -273,128 +321,6 @@ export class InitialPlReceivingController {
                 'Content-Disposition':
                     'attachment; filename="Receiving Report.xlsx"',
             },
-        });
-    }
-
-    async plFiles(c: Context): Promise<Response> {
-        const branchId = Number(c.req.param('branch_id'));
-
-        const filenames = await this.service.plFiles(branchId);
-
-        return c.json(filenames);
-    }
-
-    async getPlsFiles(c: Context): Promise<Response> {
-        const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
-
-        const user_name = user.user_name;
-        const env = c.req.query('env') as string;
-        const branchId = Number(c.req.query('branch_id'));
-        const status = Number(c.req.query('type'));
-
-        const data = await this.service.getPlsFiles({branchId, env, user_name, status});
-
-        return c.json(data)
-    }
-
-    async rowsUpdate(c: Context): Promise<Response> {
-        try {
-            const user = c.get('user');
-            const body = await c.req.json();
-            
-            const pl_id = body.pl_id;
-            const actual_received = body.actual_received;
-            const status = body.actual_received == null ? '1' : '2' // received status
-            const received_date = new Date();
-            const received_by = user.user_id
-
-            await this.service.rowsUpdate({pl_id, actual_received, status, received_date, received_by});
-
-            return c.json({
-                status: 'success',
-                message: 'Updated successfully'
-            });
-        } catch (error) {
-            return c.json(
-                {
-                    status: 'error',
-                    message: 'Something went wrong.',
-                },
-                500
-            );
-        }
-    }
-
-    async getHasZero(c: Context): Promise<Response> {
-        try {
-            const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
-
-            const user_name = user.user_name;
-            const env = c.req.query('env') as string;
-            const branch = Number(c.req.query('branch'));
-            const filename = c.req.query('filename') as string;
-            const vendor_code = c.req.query('vendor_code') as string;
-            const si_number = Number(c.req.query('si_number'));
-
-            // Filter
-            const search = c.req.query('search') || null;
-            const filterModelParam = c.req.query('filterModel') || null;
-            const sortModelParam = c.req.query('sortModel');
-
-            const filterModel = filterModelParam;
-            
-            const sortModel = sortModelParam
-            ? JSON.parse(sortModelParam)
-            : [];
-            
-            const sortColum = sortModel[0].field;
-            const sortOrder = sortModel[0].sort;
-
-            const response = await this.service.getHasZero({
-                user_name, 
-                env, 
-                branch,
-                filename,
-                vendor_code,
-                si_number,
-                search, 
-                sortColum, 
-                sortOrder,
-                filterModel
-            });
-                
-            return c.json(response);
-        } catch (error) {
-            return c.json(
-                {
-                    status: 'error',
-                    message: 'Something went wrong.',
-                },
-                500
-            );
-        }
-    }
-
-    async toConfirm(c: Context) {
-        const user = c.get('user');
-
-        const rows = await c.req.json();
-        const status = '3' // Initial Receipt
-        const confirmed_receipt_by = user.user_id;
-
-
-        if (!Array.isArray(rows) || rows.length === 0) {
-            return c.json({
-                status: 'success',
-                message: 'Nothing to update.'
-            });
-        }
-        
-        await this.service.toConfirm({rows, status, confirmed_receipt_by});
-
-        return c.json({
-            status: 'success',
-            message: 'Updated successfully'
         });
     }
 }
