@@ -189,16 +189,43 @@ export class FinalPlReceivingRepository {
         return result.recordset;
     }
 
+    async checkIfAlreadyApprovedReceipt(rows: any) {
+        const db = await getDb();
+
+        const sourceFileIds = [...new Set(
+            rows.map((row: any) => Number(row.source_file_id))
+        )];
+
+        const result = await db
+            .request()
+            .input('source_file_ids', sql.NVarChar(sql.MAX), sourceFileIds.join(','))
+            .query(`
+                SELECT COUNT(DISTINCT source_file_id) AS existing_count
+                FROM ors_source_file
+                WHERE source_file_id IN (
+                    SELECT TRY_CAST(value AS INT)
+                        FROM STRING_SPLIT(@source_file_ids, ',')
+                    )
+                AND status = 3
+            `);
+
+        const existingCount = result.recordset[0].existing_count;
+
+        const allExist = existingCount === sourceFileIds.length;
+
+        return allExist;
+    }
+
     async rowsUpdate(payload: any): Promise<void> {
         const db = await getDb();
-        
+
         const BATCH_SIZE = 200;
 
         const transaction = new sql.Transaction(db);
 
         try {
             await transaction.begin();
-
+            
             let updated = 0;
 
             for (let offset = 0; offset < payload.rows.length; offset += BATCH_SIZE) {
@@ -332,6 +359,7 @@ export class FinalPlReceivingRepository {
                     SET
                         target.status = @status,
                         target.last_update_by = @last_update_by,
+                        target.approved_receipt_by = @last_update_by,
                         target.last_update_date = GETDATE()
                         FROM ors_source_file AS target
                     INNER JOIN (

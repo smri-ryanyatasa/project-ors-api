@@ -116,11 +116,17 @@ export class FinalPlReceivingService {
             sortOrder,
             filterModel
         });
-
+        
         return response;
     }
 
     async rowsUpdate(payload: any) {
+        const check = await this.repository.checkIfAlreadyApprovedReceipt(payload.rows);
+
+        if (!check) {
+            throw new Error('Some items have already been submitted and cannot be edited. Please refresh the list.');
+        }
+
         const response = await this.repository.rowsUpdate(payload);
 
         return response;

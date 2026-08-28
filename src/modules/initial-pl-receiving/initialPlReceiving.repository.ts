@@ -309,6 +309,8 @@ export class InitialPlReceivingRepository {
 
                 const request = new sql.Request(transaction);
 
+                request.input(`confirmed_receipt_by`, sql.Int, payload.confirmed_receipt_by);
+
                 const values = batch.map((row: any, index: number) => {
                     request.input(`source_file_id_${index}`, sql.Int, Number(row.source_file_id));
                     request.input(`status_${index}`, sql.VarChar(50), payload.status);
@@ -325,6 +327,8 @@ export class InitialPlReceivingRepository {
                     UPDATE target
                     SET
                         target.status = source.status,
+                        target.confirmed_receipt_by = @confirmed_receipt_by,
+                        target.last_update_by = @confirmed_receipt_by,
                         target.last_update_date = GETDATE()
                         FROM ors_source_file AS target
                     INNER JOIN (
