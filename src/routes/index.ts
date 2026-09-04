@@ -12,6 +12,7 @@ import finalPlReceivingRoute from '../modules/final-pl-receiving/finalPlReceivin
 import plAgingReportRoute from '../modules/pl-aging-report/plAgingReport.route';
 import receivingReportRoute from '../modules/receiving-report/receivingReport.route';
 import receivingDiscrepancyReportRoute from '../modules/receiving-discrepancy-report/receivingDiscrepancyReport.route';
+import poLogsRoute from '../modules/po-logs/poLogs.route';
 
 const routes = new Hono();
 
@@ -27,5 +28,6 @@ routes.route('/final-pl-receiving', finalPlReceivingRoute);
 routes.route('/pl-ageing-report', plAgingReportRoute);
 routes.route('/receiving-report', receivingReportRoute);
 routes.route('/receiving-decrepancy-report', receivingDiscrepancyReportRoute);
+routes.route('/po-logs', poLogsRoute);
 
 export default routes;

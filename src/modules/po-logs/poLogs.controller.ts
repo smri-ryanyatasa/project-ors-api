@@ -6,12 +6,8 @@ import { PoLogsService } from "./poLogs.service";
 export class PoLogsController {
     private service = new PoLogsService();
 
-    // private readonly SUCCESS = 'Successfully uploaded with no errors.';
-    // private readonly ERROR = (error: number, total: number) => `${error} out of ${total} rows have errors.`;
-
     async getPoLogs(c: Context): Promise<Response> {
        try {
-            // const user = c.get('user');
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
             const user_name = user.user_name;
@@ -62,7 +58,6 @@ export class PoLogsController {
 
     async getPoLogsStatus(c: Context): Promise<Response> {
        try {
-            // const user = c.get('user');
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
             const user_name = user.user_name;
@@ -107,7 +102,6 @@ export class PoLogsController {
 
     async csvExport(c: Context): Promise<Response> {
        try {
-            // const user = c.get('user');
             const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
             const user_name = user.user_name;
@@ -190,7 +184,6 @@ export class PoLogsController {
     }
 
     async excelExport(c: Context): Promise<Response> {
-        // const user = c.get('user');
         const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
 
         const user_name = user.user_name;

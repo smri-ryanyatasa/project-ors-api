@@ -7,7 +7,7 @@ const poLogsRoute = new Hono();
 
 const controller = new PoLogsController();
 
-// poLogsRoute.use('*', authMiddleware);
+poLogsRoute.use('*', authMiddleware);
 
 poLogsRoute.get('/', (c) => controller.getPoLogs(c));
 poLogsRoute.get('/status', (c) => controller.getPoLogsStatus(c));
