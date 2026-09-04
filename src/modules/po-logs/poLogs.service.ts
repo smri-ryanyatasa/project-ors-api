@@ -1,5 +1,7 @@
 import { PoLogsRepository } from "./poLogs.repository";
 
+import type { PoLogs, PoLogsStatus } from './poLogs.types';
+
 export class PoLogsService {
      private repository = new PoLogsRepository();
 
@@ -12,16 +14,7 @@ export class PoLogsService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string,
-        page: number, 
-        pageSize: number, 
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PoLogs) {
         const response = await this.repository.poLogs({
             user_name, 
             env,
@@ -43,14 +36,7 @@ export class PoLogsService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string,
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PoLogsStatus) {
         const response = await this.repository.poLogsStatus({
             user_name, 
             env, 
@@ -70,14 +56,7 @@ export class PoLogsService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string,
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PoLogsStatus) {
         const response = await this.repository.csvExport({
             user_name, 
             env,
@@ -97,14 +76,7 @@ export class PoLogsService {
         sortColum, 
         sortOrder,
         filterModel
-    }: {
-        user_name: string, 
-        env: string,
-        search: string | null, 
-        sortColum: string, 
-        sortOrder: string,
-        filterModel: string | null, 
-    }) {
+    }: PoLogsStatus) {
         const response = await this.repository.excelExport({
             user_name, 
             env,
