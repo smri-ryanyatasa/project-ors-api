@@ -27,13 +27,26 @@ export class AuthService {
         );
 
         if (!isValidPassword) {
-             return {
+            return {
                 success: false,
                 message:  'Invalid username or password.'
             }
         }
 
+        const envs = user?.assigned_env?.split(',')
+        .map((env) => env.trim())
+        .filter(Boolean) || [];
+
+        if (envs.length > 0 && !envs.includes(payload.env)) {
+            return {
+                success: false,
+                message: 'You are not assigned to this environment.',
+            };
+        }
+
         const accessToken = generateToken(user);
+
+        await this.repository.updateUserEnv(user.user_id, payload.env);
 
         return {
             accessToken: accessToken,
