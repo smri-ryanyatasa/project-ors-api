@@ -16,6 +16,7 @@ export interface User {
 
 export interface UserWithPassword extends User {
   password: string;
+  assigned_env: string;
 }
 
 export interface UserFilter {

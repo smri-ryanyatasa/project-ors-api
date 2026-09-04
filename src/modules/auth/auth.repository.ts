@@ -14,7 +14,8 @@ export class AuthRepository {
                 SELECT
                     user_id,
                     user_name,
-                    password
+                    password,
+                    assigned_env
                 FROM users
                 WHERE user_name = @user_name
             `);
@@ -66,6 +67,7 @@ export class AuthRepository {
                     u.email_address,
                     u.position,
                     u.env,
+                    u.assigned_env,
                     r.id AS role_id,
                     r.name AS role_name,
 
@@ -133,5 +135,19 @@ export class AuthRepository {
             `);
 
         return result.recordset[0];
+    }
+
+    async updateUserEnv(user_id: number, env: string) {
+        const db = await getDb();
+        
+        await db
+            .request()
+            .input('user_id', sql.Int, user_id)
+            .input('env', sql.VarChar, env)
+            .query(`
+                UPDATE users
+                SET env = @env
+                WHERE user_id = @user_id
+            `);
     }
 }

@@ -126,6 +126,16 @@ export class ItemRepository {
                     conditions.push(`(${column} IS NOT NULL AND ${column} <> '')`);
                     return;
 
+                case 'isAnyOf':
+                    if (!Array.isArray(filter.value) || filter.value.length === 0) return;
+
+                    const values = filter.value
+                        .map((item: any) => `'${String(item).replace(/'/g, "''")}'`)
+                        .join(', ');
+
+                    conditions.push(`${column} IN (${values})`);
+                    return;
+
                 default:
                     return;
             }
