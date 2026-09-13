@@ -354,7 +354,7 @@ export class PlUploadRepository {
                     Number(row.branch_code),
                     Number(row.vendor_code),
                     payload.env,
-                    String(payload.status),
+                    String('1'),
                     row.reason
                 );
             }
@@ -366,7 +366,12 @@ export class PlUploadRepository {
 
             return result.recordset[0] ?? null;
         } catch (error) {
-            await transaction.rollback();
+            try {
+                await transaction.rollback();
+            } catch (rollbackError) {
+                console.error('Rollback failed:', rollbackError);
+            }
+
             throw error;
         }
     }

@@ -8,10 +8,18 @@ const config: sql.config = {
   database: env.DB_DATABASE!,
   user: env.DB_USER!,
   password: env.DB_PASSWORD!,
+
+  pool: {
+    max: 20, // test - starting point for pool setup in prod can be increased depends in the testing
+    min: 2, // minimum db connection then automatic increase if receives bulk
+    idleTimeoutMillis: 30000, // idle before timeout
+  },
+
   options: {
     encrypt: false,
     trustServerCertificate: true,
   },
+  requestTimeout: 120000,
 };
 let pool: sql.ConnectionPool | null = null;
 

@@ -3,7 +3,7 @@ import sql from 'mssql';
 import { getDb  } from '../../config/database';
 import { withUserContext } from '../../lib/with-user-context';
 
-import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove } from './finalPlReceiving.types';
+import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove, FinalPlReceivingHasZero } from './finalPlReceiving.types';
 
 export class FinalPlReceivingRepository {
     async finalPlReceiving({
@@ -384,6 +384,48 @@ export class FinalPlReceivingRepository {
 
             throw error;
         }
+    }
+
+    async hasZero({
+        user_name, 
+        env, 
+        branch,
+        filename,
+        vendor_code,
+        si_number,
+        search, 
+        sortColum, 
+        sortOrder,
+        filterModel
+    }: FinalPlReceivingHasZero) {
+        const result = await withUserContext(user_name, async (request) => {
+            return request
+                .input('env', sql.VarChar, env)
+                .input('user_name', sql.VarChar, user_name)
+                .input('search', sql.VarChar, search)
+                .input('sort_column', sql.VarChar, sortColum)
+                .input('sort_order', sql.VarChar, sortOrder)
+                .input('filters_json', sql.VarChar, `${filterModel}`)
+                .input('branch', sql.Int, branch ?? null)
+                .input('filename', sql.VarChar, filename ?? null)
+                .input('vendor_code', sql.VarChar, vendor_code ?? null)
+                .input('si_number', sql.Int, si_number ?? null)
+                .query(`
+                    EXEC [dbo].[GetFinalPlReceivingDynamic] 
+                        @Env                          = @env,
+                        @UserName                     = @user_name, 
+                        @SearchText                   = @search, 
+                        @SortColumn                   = @sort_column, 
+                        @SortOrder                    = @sort_order, 
+                        @FiltersJson                  = @filters_json,
+                        @BranchCode                   = @branch,
+                        @FileName                     = @filename,
+                        @VendorCode                   = @vendor_code,
+                        @SalesInvoice                 = @si_number;
+                `);
+        });
+
+        return result.recordset;
     }
 
 }
