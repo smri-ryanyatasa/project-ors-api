@@ -13,6 +13,19 @@ export interface FinalPlReceiving {
     filterModel: string | null, 
 }
 
+export interface FinalPlReceivingHasZero {
+    user_name: string, 
+    env: string, 
+    branch: number,
+	filename: string,
+	vendor_code: string,
+	si_number: number,
+    search: string | null, 
+    sortColum: string, 
+    sortOrder: string,
+    filterModel: string | null, 
+}
+
 export interface FinalPlReceivingStatus {
     user_name: string,
     env: string, 

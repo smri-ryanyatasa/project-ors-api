@@ -397,4 +397,57 @@ export class FinalPlReceivingController {
             );
         }
     }
+
+    async getHasZero(c: Context): Promise<Response> {
+        try {
+            const user = c.get('user') ?? { user_name: c.req.query('user_name') as string };
+
+            const user_name = user.user_name;
+            const env = c.req.query('env') as string;
+            const branch = Number(c.req.query('branch'));
+            const filename = c.req.query('filename') as string;
+            const vendor_code = c.req.query('vendor_code') as string;
+            const si_number = Number(c.req.query('si_number'));
+
+            // Filter
+            const search = c.req.query('search') || null;
+            const filterModelParam = c.req.query('filterModel') || null;
+            const sortModelParam = c.req.query('sortModel');
+
+            const filterModel = filterModelParam;
+            
+            const sortModel = sortModelParam
+            ? JSON.parse(sortModelParam)
+            : [];
+            
+            const queries = c.req.queries();
+  
+            const sortColum = sortModel[0].field;
+            const sortOrder = sortModel[0].sort;
+
+            const response = await this.service.getHasZero({
+                user_name, 
+                env, 
+                branch,
+                filename,
+                vendor_code,
+                si_number,
+                search, 
+                sortColum, 
+                sortOrder,
+                filterModel
+            });
+
+            return c.json(response);
+
+        }  catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
  }

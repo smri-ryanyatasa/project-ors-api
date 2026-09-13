@@ -1,5 +1,5 @@
 import { FinalPlReceivingRepository } from "./finalPlReceiving.repository";
-import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove } from './finalPlReceiving.types';
+import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove, FinalPlReceivingHasZero } from './finalPlReceiving.types';
 
 export class FinalPlReceivingService {
      private repository = new FinalPlReceivingRepository();
@@ -166,6 +166,32 @@ export class FinalPlReceivingService {
         return action;
     }
 
+    async getHasZero({
+        user_name,
+        env,
+        branch,
+        filename,
+        vendor_code,
+        si_number,
+        search, 
+        sortColum, 
+        sortOrder,
+        filterModel
+    }: FinalPlReceivingHasZero) {
+        const response = await this.repository.hasZero({
+            user_name,
+            env,
+            branch,
+            filename,
+            vendor_code,
+            si_number,
+            search, 
+            sortColum, 
+            sortOrder,
+            filterModel
+        });
 
+        return response;
+    }
 
 }

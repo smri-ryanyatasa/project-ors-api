@@ -15,5 +15,6 @@ finalPlReceivingRoute.get('/csv-export', (c) => controller.csvExport(c));
 finalPlReceivingRoute.get('/excel-export', (c) => controller.excelExport(c));
 finalPlReceivingRoute.put('/rows-update', (c) => controller.rowsUpdate(c));
 finalPlReceivingRoute.get('/to-approved', (c) => controller.toApproved(c));
+finalPlReceivingRoute.get('/has-zero', (c) => controller.getHasZero(c));
 
 export default finalPlReceivingRoute;
