@@ -265,19 +265,19 @@ export class InitialPlReceivingRepository {
 
     }
 
-    async hasZero({
-            user_name,
-            env,
-            branch,
-            filename,
-            vendor_code,
-            si_number,
-            search, 
-            sortColum, 
-            sortOrder,
-            filterModel
-        }: InitialPlReceivingHasZero) {
-            const result = await withUserContext(user_name, async (request) => {
+    async handleToConfirm({
+        user_name,
+        env,
+        branch,
+        filename,
+        vendor_code,
+        si_number,
+        search, 
+        sortColum, 
+        sortOrder,
+        filterModel
+    }: InitialPlReceivingHasZero) {
+        const result = await withUserContext(user_name, async (request) => {
             return request
                 .input('env', sql.VarChar, env)
                 .input('user_name', sql.VarChar, user_name)
@@ -290,24 +290,65 @@ export class InitialPlReceivingRepository {
                 .input('vendor_code', sql.VarChar, vendor_code ?? null)
                 .input('si_number', sql.Int, si_number ?? null)
                 .query(`
-                        EXEC [dbo].[GetInitialPlReceivingDynamic] 
-                            @Env                          = @env,
-                            @UserName                     = @user_name, 
-                            @SearchText                   = @search, 
-                            @SortColumn                   = @sort_column, 
-                            @SortOrder                    = @sort_order, 
-                            @FiltersJson                  = @filters_json,
-                            @BranchCode                   = @branch,
-                            @FileName                     = @filename,
-                            @VendorCode                   = @vendor_code,
-                            @SalesInvoice                 = @si_number;
-                `);
+                    EXEC [dbo].[GetInitialPlReceivingDynamic] 
+                        @Env                          = @env,
+                        @UserName                     = @user_name, 
+                        @SearchText                   = @search, 
+                        @SortColumn                   = @sort_column, 
+                        @SortOrder                    = @sort_order, 
+                        @FiltersJson                  = @filters_json,
+                        @BranchCode                   = @branch,
+                        @FileName                     = @filename,
+                        @VendorCode                   = @vendor_code,
+                        @SalesInvoice                 = @si_number;
+            `);
         });
 
-        return result.recordset;
+        return result.recordset
     }
 
-    async toConfirm(payload: any): Promise<void> {
+    async hasZero({
+        user_name,
+        env,
+        branch,
+        filename,
+        vendor_code,
+        si_number,
+        search, 
+        sortColum, 
+        sortOrder,
+        filterModel
+    }: InitialPlReceivingHasZero) {
+
+        const result = await this.handleToConfirm({ user_name,
+            env,
+            branch,
+            filename,
+            vendor_code,
+            si_number,
+            search, 
+            sortColum, 
+            sortOrder,
+            filterModel
+        });
+
+        let hasZeroQty = false;
+        let hasPending = false;
+
+        for (const row of result) {
+            if (row.actual_received === 0) hasZeroQty = true;
+            if (row.status === 'Pending') hasPending = true;
+
+            if (hasZeroQty && hasPending) break;
+        }
+
+        return {
+            hasZeroQty: hasZeroQty,
+            hasPending: hasPending
+        };
+    }
+
+    async toConfirm(rows: any, status: string, confirmed_receipt_by: number): Promise<void> {
         const db = await getDb();
 
         const BATCH_SIZE = 500;
@@ -319,16 +360,16 @@ export class InitialPlReceivingRepository {
 
             let updated = 0;
 
-            for (let offset = 0; offset < payload.rows.length; offset += BATCH_SIZE) {
-                const batch = payload.rows.slice(offset, offset + BATCH_SIZE);
+            for (let offset = 0; offset < rows.length; offset += BATCH_SIZE) {
+                const batch = rows.slice(offset, offset + BATCH_SIZE);
 
                 const request = new sql.Request(transaction);
 
-                request.input(`confirmed_receipt_by`, sql.Int, payload.confirmed_receipt_by);
+                request.input(`confirmed_receipt_by`, sql.Int, confirmed_receipt_by);
 
                 const values = batch.map((row: any, index: number) => {
                     request.input(`source_file_id_${index}`, sql.Int, Number(row.source_file_id));
-                    request.input(`status_${index}`, sql.VarChar(50), payload.status);
+                    request.input(`status_${index}`, sql.VarChar(50), status);
 
                     return `(
                         @source_file_id_${index},

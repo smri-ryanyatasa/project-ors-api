@@ -382,19 +382,46 @@ export class InitialPlReceivingController {
     async toConfirm(c: Context) {
         const user = c.get('user');
 
-        const rows = await c.req.json();
         const status = '3' // Initial Receipt
         const confirmed_receipt_by = user.user_id;
 
+        const user_name = user.user_name;
+        const env = c.req.query('env') as string;
+        const branch = Number(c.req.query('branch'));
+        const filename = c.req.query('filename') as string;
+        const vendor_code = c.req.query('vendor_code') as string;
+        const si_number = Number(c.req.query('si_number'));
 
-        if (!Array.isArray(rows) || rows.length === 0) {
-            return c.json({
-                status: 'success',
-                message: 'Nothing to update.'
-            });
-        }
+        // Filter
+        const search = c.req.query('search') || null;
+        const filterModelParam = c.req.query('filterModel') || null;
+        const sortModelParam = c.req.query('sortModel');
+
+        const filterModel = filterModelParam;
         
-        await this.service.toConfirm({rows, status, confirmed_receipt_by});
+        const sortModel = sortModelParam
+        ? JSON.parse(sortModelParam)
+        : [];
+        
+        const queries = c.req.queries();
+
+        const sortColum = sortModel[0].field;
+        const sortOrder = sortModel[0].sort;
+
+        await this.service.toConfirm({
+            user_name, 
+            env, 
+            branch,
+            filename,
+            vendor_code,
+            si_number,
+            search, 
+            sortColum, 
+            sortOrder,
+            filterModel,
+            status,
+            confirmed_receipt_by
+        });
 
         return c.json({
             status: 'success',

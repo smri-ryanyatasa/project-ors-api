@@ -76,8 +76,8 @@ export interface ToApprove {
     sortColum: string, 
     sortOrder: string,
     filterModel: string | null, 
-    status: string,
-    last_update_by: number
+    // status: string,
+    // last_update_by: number
 }
 
 
