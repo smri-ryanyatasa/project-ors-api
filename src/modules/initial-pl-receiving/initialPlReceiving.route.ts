@@ -16,7 +16,7 @@ initialPlReceivingRoute.get('/csv-export', (c) => controller.csvExport(c));
 initialPlReceivingRoute.get('/excel-export', (c) => controller.excelExport(c));
 initialPlReceivingRoute.get('/filename-si_number', (c) => controller.getPlsFiles(c));
 initialPlReceivingRoute.put('/rows-update', (c) => controller.rowsUpdate(c));
-initialPlReceivingRoute.put('/to-confirm', (c) => controller.toConfirm(c));
+initialPlReceivingRoute.get('/to-confirm', (c) => controller.toConfirm(c));
 initialPlReceivingRoute.get('/branch/:branch_id/filenames', (c) => controller.plFiles(c));
 
 export default initialPlReceivingRoute;

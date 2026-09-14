@@ -398,34 +398,31 @@ export class FinalPlReceivingRepository {
         sortOrder,
         filterModel
     }: FinalPlReceivingHasZero) {
-        const result = await withUserContext(user_name, async (request) => {
-            return request
-                .input('env', sql.VarChar, env)
-                .input('user_name', sql.VarChar, user_name)
-                .input('search', sql.VarChar, search)
-                .input('sort_column', sql.VarChar, sortColum)
-                .input('sort_order', sql.VarChar, sortOrder)
-                .input('filters_json', sql.VarChar, `${filterModel}`)
-                .input('branch', sql.Int, branch ?? null)
-                .input('filename', sql.VarChar, filename ?? null)
-                .input('vendor_code', sql.VarChar, vendor_code ?? null)
-                .input('si_number', sql.Int, si_number ?? null)
-                .query(`
-                    EXEC [dbo].[GetFinalPlReceivingDynamic] 
-                        @Env                          = @env,
-                        @UserName                     = @user_name, 
-                        @SearchText                   = @search, 
-                        @SortColumn                   = @sort_column, 
-                        @SortOrder                    = @sort_order, 
-                        @FiltersJson                  = @filters_json,
-                        @BranchCode                   = @branch,
-                        @FileName                     = @filename,
-                        @VendorCode                   = @vendor_code,
-                        @SalesInvoice                 = @si_number;
-                `);
+        
+        const result = await this.toApproved({
+            user_name, 
+            env, 
+            branch,
+            filename,
+            vendor_code,
+            si_number,
+            search, 
+            sortColum, 
+            sortOrder,
+            filterModel
         });
 
-        return result.recordset;
+        let hasZeroQty = false;
+
+        for (const row of result) {
+            if (row.final_qty === 0) hasZeroQty = true;
+
+            if (hasZeroQty) break;
+        }
+
+        return {
+            hasZeroQty: hasZeroQty,
+        };
     }
 
 }

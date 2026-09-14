@@ -1,6 +1,6 @@
 import { InitialPlReceivingRepository } from "./initialPlReceiving.repository";
 
-import type { InitialPlReceiving, InitialPlReceivingHasZero, InitialPlReceivingStatus, InitialPlReceivingCsvExport, InitialPlReceivingExcelExport, RowsUpdate } from './initialPlReceiving.types';
+import type { InitialPlReceiving, InitialPlReceivingHasZero, InitialPlReceivingStatus, InitialPlReceivingCsvExport, InitialPlReceivingExcelExport, RowsUpdate, ToConfirm } from './initialPlReceiving.types';
 
 export class InitialPlReceivingService {
      private repository = new InitialPlReceivingRepository();
@@ -173,8 +173,33 @@ export class InitialPlReceivingService {
         return response;
     }
 
-    async toConfirm(payload: any) {
-        const response = await this.repository.toConfirm(payload);
+    async toConfirm({
+        user_name, 
+        env, 
+        branch,
+        filename,
+        vendor_code,
+        si_number,
+        search, 
+        sortColum, 
+        sortOrder,
+        filterModel,
+        status,
+        confirmed_receipt_by
+        }: ToConfirm) {
+            const rows = await this.repository.handleToConfirm({
+                user_name, 
+                env, 
+                branch,
+                filename,
+                vendor_code,
+                si_number,
+                search, 
+                sortColum, 
+                sortOrder,
+                filterModel,
+            });
+        const response = await this.repository.toConfirm(rows, status, confirmed_receipt_by);
         return response;
     }
 }

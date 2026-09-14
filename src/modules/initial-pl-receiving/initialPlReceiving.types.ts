@@ -74,4 +74,17 @@ export interface RowsUpdate {
     source_file_id: string
 }
 
-
+export interface ToConfirm {
+    user_name: string, 
+    env: string, 
+    branch: number,
+	filename: string,
+	vendor_code: string,
+	si_number: number,
+    search: string | null, 
+    sortColum: string, 
+    sortOrder: string,
+    filterModel: string | null, 
+    status: string,
+    confirmed_receipt_by: number,
+}
