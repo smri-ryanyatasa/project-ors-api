@@ -181,4 +181,14 @@ export class PlUploadService {
         return result;
     }
 
+    async checkInItem(materials: any) {
+        const data = await this.repository.checkInItem(materials);
+        return data;
+    }
+
+    async checkVendorTagInItem(vcodes: any) {
+        const data = await this.repository.checkVendorTagInItem(vcodes);
+        return data;
+    }
+
 }

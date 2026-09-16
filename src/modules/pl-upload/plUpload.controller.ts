@@ -382,7 +382,7 @@ export class PlUploadController {
         }
     }
 
-    async plCreate(c: Context): Promise<Response> {
+    async plCreate(c: Context) {
         try {
             const user = c.get('user');
 
@@ -419,20 +419,75 @@ export class PlUploadController {
                 }, 400);
             }
 
+            const materials = [
+                ...new Map(
+                    body.rows
+                        .map((row: any) => {
+                            const material = row.material?.toString().trim();
+                            const size = row.size?.toString().trim();
+
+                            if (!material || !size) return null;
+
+                            return [`${material}|${size}`, { material, size }];
+                        })
+                        .filter(Boolean)
+                ).values(),
+            ];
+
+            const itemMap = await this.service.checkInItem(materials);
+            
+            const vendorCode = body.rows[0]?.vendor_code?.toString().trim();
+
             const rows = body.rows.map((row: any) => {
                 const validation = PlUploadRowSchema.safeParse(row);
+                const reasons: string[] = [];
+
+                if (!validation.success) {
+                    reasons.push(
+                        ...validation.error.issues.map(
+                            (issue) =>
+                                `${fieldLabels[String(issue.path[0])]}: ${issue.message}`
+                        )
+                    );
+                }
+
+                const material = row.material?.toString().trim();
+                const size = row.size?.toString().trim();
+
+                let tag = '';
+
+                const key = `${material}|${size}`;
+
+                const item = itemMap.get(key);
+
+                const altVendorNames = item.alt_vendor_name ?? [];
+
+                if (!item) {
+                    reasons.push('Material not found in Item Masterfile');
+                } else {
+                    const primaryCode = item.primary_vendor_code?.toString().trim();
+
+                    if (vendorCode === primaryCode) {
+                        tag = 'Primary';
+                    } else if (altVendorNames.includes(vendorCode)) {
+                        tag = 'Alternative';
+                    } else {
+                        reasons.push('Vendor not found in Item Masterfile.');
+                    }
+
+                    if (item.status !== 'A') {
+                        reasons.push('Material is not in Active status.');
+                    }
+                }
+
 
                 return {
-                ...row,
-                reason: validation.success
-                    ? ''
-                    : validation.error.issues
-                        .map((issue) => `${fieldLabels[String(issue.path[0])]}: ${issue.message}`)
-                        .join(', '),
+                    ...row,
+                    tag: tag,
+                    reason: reasons.join(', '),
                 };
             });
 
-            // const hasErrors = rows.some((row: any) => row.reason.length > 0);
             const hasErrors = rows.filter((row: any) => row.reason.length > 0).length;
 
             const response = {
@@ -445,11 +500,12 @@ export class PlUploadController {
                 tran_date: new Date(),
                 user_name
             };
-            
+
             const result = await this.service.plUpload(response);
 
             return c.json(result);
         } catch(error) {
+            console.log(error)
             if (error instanceof Error && error.message === 'PL File already exists.') {
                 return c.json(
                     {
@@ -517,16 +573,64 @@ export class PlUploadController {
                 }, 400);
             }
 
+            const materials = [
+                ...new Map(
+                    body.rows
+                        .map((row: any) => {
+                            const material = row.material?.toString().trim();
+                            const size = row.size?.toString().trim();
+
+                            if (!material || !size) return null;
+
+                            return [`${material}|${size}`, { material, size }];
+                        })
+                        .filter(Boolean)
+                ).values(),
+            ];
+
+            const existingMaterials  = await this.service.checkInItem(materials);
+
+            const vcodes = [
+                ...new Set(
+                    body.rows
+                        .map((row: any) => row.vendor_code?.toString().trim())
+                        .filter(Boolean)
+                ),
+            ];
+
+            const vcodeTags = await this.service.checkVendorTagInItem(vcodes);
+
+            const tag = vcodeTags.get(
+                body.rows[0]?.vendor_code?.toString().trim()
+            ) || '';
+
             const rows = body.rows.map((row: any) => {
                 const validation = PlUploadRowSchema.safeParse(row);
+                const reasons: string[] = [];
+
+                if (!validation.success) {
+                    reasons.push(
+                        ...validation.error.issues.map(
+                            (issue) =>
+                                `${fieldLabels[String(issue.path[0])]}: ${issue.message}`
+                        )
+                    );
+                }
+
+                const material = row.material?.toString().trim();
+                const size = row.size?.toString().trim();
+
+                const key = `${material}|${size}`;
+
+                if (material && size && !existingMaterials.has(key)) {
+                    reasons.push('Material not found in Item Masterfile');
+                }
+
 
                 return {
-                ...row,
-                reason: validation.success
-                    ? ''
-                    : validation.error.issues
-                        .map((issue) => `${fieldLabels[String(issue.path[0])]}: ${issue.message}`)
-                        .join(', '),
+                    ...row,
+                    tag: tag,
+                    reason: reasons.join(', '),
                 };
             });
 
