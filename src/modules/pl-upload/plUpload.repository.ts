@@ -30,19 +30,16 @@ export class PlUploadRepository {
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .input('branch_code', sql.Int, branch ?? null)
                 .query(`
-                    SELECT * 
-                        FROM dbo.GetPlUploadListDynamic
-                        (
-                            @env,
-                            @user_name, 
-                            @page_number, 
-                            @page_size, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json,
-                            @branch_code
-                        );
+                    EXEC [dbo].[GetPlUploadListDynamic]
+                        @Env            = @env,
+                        @UserName       = @user_name, 
+                        @PageNumber     = @page_number, 
+                        @PageSize       = @page_size, 
+                        @SearchText     = @search, 
+                        @SortColumn     = @sort_column,
+                        @SortOrder      = @sort_order, 
+                        @FiltersJson    = @filters_json,
+                        @BranchCode     = @branch_code
                 `);
         });
 
@@ -68,17 +65,14 @@ export class PlUploadRepository {
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .input('branch_code', sql.Int, branch ?? null)
                 .query(`
-                    SELECT * 
-                        FROM dbo.[GetPlUploadlStatusFnc]
-                        (
-                            @env,
-                            @user_name, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json,
-                            @branch_code
-                        );
+                    EXEC [dbo].[GetPlUploadlStatusPrc]
+                        @Env            = @env,
+                        @UserName       = @user_name, 
+                        @SearchText     = @search, 
+                        @SortColumn     = @sort_column,
+                        @SortOrder      = @sort_order, 
+                        @FiltersJson    = @filters_json,
+                        @BranchCode     = @branch_code
                 `);
         });
         
@@ -106,19 +100,16 @@ export class PlUploadRepository {
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .input('branch_code', sql.Int, branch ?? null)
                 .query(`
-                    SELECT * 
-                        FROM dbo.GetPlUploadListDynamic
-                        (
-                            @env,
-                            @user_name, 
-                            @page_number, 
-                            @page_size, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json,
-                            @branch_code
-                        );
+                     EXEC [dbo].[GetPlUploadListDynamic]
+                        @Env            = @env,
+                        @UserName       = @user_name, 
+                        @PageNumber     = @page_number, 
+                        @PageSize       = @page_size, 
+                        @SearchText     = @search, 
+                        @SortColumn     = @sort_column,
+                        @SortOrder      = @sort_order, 
+                        @FiltersJson    = @filters_json,
+                        @BranchCode     = @branch_code
                 `);
         });
         
@@ -146,19 +137,16 @@ export class PlUploadRepository {
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .input('branch_code', sql.Int, branch ?? null)
                 .query(`
-                    SELECT * 
-                        FROM dbo.GetPlUploadListDynamic
-                        (
-                            @env,
-                            @user_name, 
-                            @page_number, 
-                            @page_size, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json,
-                            @branch_code
-                        );
+                    EXEC [dbo].[GetPlUploadListDynamic]
+                        @Env            = @env,
+                        @UserName       = @user_name, 
+                        @PageNumber     = @page_number, 
+                        @PageSize       = @page_size, 
+                        @SearchText     = @search, 
+                        @SortColumn     = @sort_column,
+                        @SortOrder      = @sort_order, 
+                        @FiltersJson    = @filters_json,
+                        @BranchCode     = @branch_code
                 `);
         });
 
@@ -499,5 +487,191 @@ export class PlUploadRepository {
             await transaction.rollback();
             throw error;
         }
+    }
+
+    // async checkInItem(materials: any[]) {
+    //     const db = await getDb();
+
+    //     const existingMaterials = new Set();
+
+    //     const allResult: any[] = [];
+
+    //     const batchSize = 500;
+
+    //     for (let start = 0; start < materials.length; start += batchSize) {
+    //         const batch = materials.slice(start, start + batchSize);
+
+    //         const values = batch
+    //             .map(
+    //                 (_: any, index: number) =>
+    //                     `(@material${index}, @size${index})`
+    //             )
+    //             .join(', ');
+
+    //         const request = db.request();
+        
+    //         batch.forEach((item: any, index: number) => {
+    //             request.input(`material${index}`, item.material);
+    //             request.input(`size${index}`, item.size);
+    //         });
+
+    //         const result = await request.query(`
+    //             SELECT 
+    //                 v.material,
+    //                 v.size,
+    //                 i.primary_code,
+    //                 i.alt_code,
+    //                 i.status
+    //             FROM (
+    //                 VALUES ${values}
+    //             ) AS v(material, size)
+    //             INNER JOIN item i
+    //                 ON i.style = v.material
+    //                 AND i.size = v.size
+    //         `);
+
+    //         allResult.push(result.recordset);
+            
+    //         result.recordset.forEach((item: any) => {
+    //             existingMaterials.add(
+    //                 `${item.material?.toString().trim()}|${item.size?.toString().trim()}`
+    //             );
+    //         });
+            
+    //     }
+
+    //     return {
+    //         existingMaterials: existingMaterials,
+    //         data: allResult
+    //     }
+    // }
+
+    async checkInItem(materials: any[]) {
+        const db = await getDb();
+
+        const resultMap = new Map<string, any>();
+
+        const batchSize = 500;
+
+        for (let start = 0; start < materials.length; start += batchSize) {
+            const batch = materials.slice(start, start + batchSize);
+
+            const values = batch
+                .map(
+                    (_: any, index: number) =>
+                        `(@material${index}, @size${index})`
+                )
+                .join(', ');
+
+            const request = db.request();
+
+            batch.forEach((item: any, index: number) => {
+                request.input(`material${index}`, item.material);
+                request.input(`size${index}`, item.size);
+            });
+
+            const result = await request.query(`
+                SELECT
+                    v.material,
+                    v.size,
+                    i.primary_vendor_code,
+                    i.alt_vendor_name,
+                    i.status
+                FROM (
+                    VALUES ${values}
+                ) AS v(material, size)
+                JOIN item i
+                    ON i.style_code = v.material
+                    AND i.size_dimension = v.size
+            `);
+            
+            result.recordset.forEach((item: any) => {
+                const material = item.material?.toString().trim();
+                const size = item.size?.toString().trim();
+
+                const key = `${material}|${size}`;
+
+                const altCodes =
+                    item.alt_vendor_name
+                        ?.toString()
+                        .split(',')
+                        .map((value: any) =>
+                            value.split(' - ')[0].trim()
+                        )
+                        .filter(Boolean) ?? [];
+
+                resultMap.set(key, {
+                    material,
+                    size,
+                    primary_vendor_code: item.primary_vendor_code?.toString().trim() || null,
+                    alt_vendor_name: altCodes,
+                    status: item.status?.toString().trim(),
+                });
+            });
+        }
+
+        return resultMap;
+    }
+
+    async checkVendorTagInItem(vcodes: any) {
+        const db = await getDb();
+
+        const vcodeTags = new Map();
+
+        const batchSize = 500;
+
+        for (let start = 0; start < vcodes.length; start += batchSize) {
+            const batch = vcodes.slice(start, start + batchSize);
+
+            const vcodeValues = batch
+                .map(
+                    (_: any, index: number) =>
+                        `(@vcode${index})`
+                )
+                .join(', ');
+
+            const vcodeRequest = db.request();
+
+            batch.forEach((vcode: any, index: number) => {
+                vcodeRequest.input(`vcode${index}`, vcode);
+            });
+
+            const vcodeResult = await vcodeRequest.query(`
+                SELECT
+                        v.vcode,
+                        CASE
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM item i
+                                WHERE LTRIM(RTRIM(i.primary_vendor_code)) = LTRIM(RTRIM(v.vcode))
+                            )
+                            THEN 'primary'
+
+                            WHEN EXISTS (
+                                SELECT 1
+                                FROM item i
+                                WHERE LTRIM(RTRIM(
+                                    LEFT(i.alt_vendor_name, CHARINDEX(' - ', i.alt_vendor_name + ' - ') - 1)
+                                )) = LTRIM(RTRIM(v.vcode))
+                            )
+                            THEN 'alternative'
+
+                            ELSE ''
+                        END AS tag
+                    FROM (
+                        VALUES ${vcodeValues}
+                    ) AS v(vcode)
+            `);
+
+            vcodeResult.recordset.forEach((item: any) => {
+                vcodeTags.set(
+                    item.vcode?.toString().trim(),
+                    item.tag
+                );
+            });
+        }
+
+    return vcodeTags;
+
     }
 }
