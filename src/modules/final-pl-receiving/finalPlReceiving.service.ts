@@ -1,5 +1,5 @@
 import { FinalPlReceivingRepository } from "./finalPlReceiving.repository";
-import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove, FinalPlReceivingHasZero } from './finalPlReceiving.types';
+import type { FinalPlReceiving, FinalPlReceivingStatus, FinalPlReceivingCsvExport, FinalPlReceivingExcelExport, ToApprove, FinalPlReceivingHasZero, ToApproved } from './finalPlReceiving.types';
 
 export class FinalPlReceivingService {
      private repository = new FinalPlReceivingRepository();
@@ -145,7 +145,7 @@ export class FinalPlReceivingService {
         filterModel,
         status,
         last_update_by
-    }: ToApprove) {
+    }: ToApproved) {
         const response = await this.repository.toApproved({
             user_name,
             env,
@@ -157,8 +157,6 @@ export class FinalPlReceivingService {
             sortColum, 
             sortOrder,
             filterModel,
-            status,
-            last_update_by
         });
 
         const action = await this.repository.approvedUpdate(response, status, last_update_by);

@@ -201,10 +201,11 @@ export class UserController {
         return c.json(history)
     }
 
-    async bulkUpload(c: Context): Promise<Response> {
+    async bulkUpload(c: Context){
         const body = await c.req.json();
+        const env = body['env'];
 
-        const result = BulkUserUploadSchema.safeParse(body);
+        const result = BulkUserUploadSchema.safeParse(body['rows']);
 
         if (!result.success) {
             const errors = result.error.issues.map((issue) => ({
@@ -219,7 +220,7 @@ export class UserController {
             }, 400);
         }
         
-        const upload = await this.service.bulkUpload(result.data);
+        const upload = await this.service.bulkUpload(result.data, env);
 
         if (!upload.success) {
              return c.json({

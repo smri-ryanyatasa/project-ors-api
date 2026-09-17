@@ -696,7 +696,8 @@ export class UserRepository {
                     @status_${index},
                     @business_unit_${index},
                     @created_by_${index},
-                    @description_${index}
+                    @description_${index},
+                    @assigned_env_${index}
                 )`;
             });
 
@@ -721,6 +722,7 @@ export class UserRepository {
                 request.input(`created_by_${index}`, sql.Int, user.created_by);
                 request.input(`description_${index}`, sql.VarChar(sql.MAX), user.description ?? null);
                 request.input(`role_${index}`, sql.VarChar(255), user.role);
+                request.input(`assigned_env_${index}`, sql.VarChar(100), user.env);
             });
 
             // -- Validate roles first
@@ -764,7 +766,8 @@ export class UserRepository {
                     status,
                     business_unit,
                     created_by,
-                    description
+                    description,
+                    assigned_env
                 )
                 OUTPUT
                     inserted.user_id,
@@ -775,11 +778,11 @@ export class UserRepository {
                 )
                 VALUES ${userValues.join(', ')};
 
-
                 INSERT INTO user_has_roles (
                     user_id,
                     role_id
                 )
+
                 SELECT
                     iu.user_id,
                     r.id
