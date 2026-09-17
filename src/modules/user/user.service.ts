@@ -123,7 +123,7 @@ export class UserService {
         return user;
     }
 
-    async bulkUpload(payload: BulkUserUploadSchemaType) {
+    async bulkUpload(payload: BulkUserUploadSchemaType, env: string) {
         const usernames = new Set<string>();
         const duplicates = new Set<string>();
         
@@ -162,7 +162,7 @@ export class UserService {
                 ...user,
                 password: hashedPassword,
                 mms: 'Y', // change for the future
-                env: "SCP" // change for the future
+                env: env
             }))
         );
 

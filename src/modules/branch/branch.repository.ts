@@ -26,18 +26,15 @@ export class BranchRepository {
                 .input('sort_order', sql.VarChar, sortOrder)
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .query(`
-                    SELECT * 
-                        FROM dbo.[GetBranchListDynamic]
-                        (
-                            @env,
-                            @user_name, 
-                            @page_number, 
-                            @page_size, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json
-                        );
+                    EXEC [dbo].[GetBranchListDynamic] 
+                        @Env         = @env,
+                        @UserName    = @user_name, 
+                        @PageNumber  = @page_number, 
+                        @PageSize    = @page_size, 
+                        @SearchText  = @search, 
+                        @SortColumn  = @sort_column,
+                        @SortOrder   = @sort_order, 
+                        @FiltersJson = @filters_json     
                 `);
         });
 
@@ -63,18 +60,15 @@ export class BranchRepository {
                 .input('sort_order', sql.VarChar, sortOrder)
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .query(`
-                    SELECT * 
-                        FROM dbo.[GetBranchListDynamic]
-                        (
-                            @env,
-                            @user_name, 
-                            @page_number, 
-                            @page_size, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json
-                        );
+                    EXEC [dbo].[GetBranchListDynamic] 
+                        @Env         = @env,
+                        @UserName    = @user_name, 
+                        @PageNumber  = @page_number, 
+                        @PageSize    = @page_size, 
+                        @SearchText  = @search, 
+                        @SortColumn  = @sort_column,
+                        @SortOrder   = @sort_order, 
+                        @FiltersJson = @filters_json     
                 `);
         });
         
@@ -100,18 +94,15 @@ export class BranchRepository {
                 .input('sort_order', sql.VarChar, sortOrder)
                 .input('filters_json', sql.VarChar, `${filterModel}`)
                 .query(`
-                    SELECT * 
-                        FROM dbo.[GetBranchListDynamic]
-                        (
-                            @env,
-                            @user_name, 
-                            @page_number, 
-                            @page_size, 
-                            @search, 
-                            @sort_column, 
-                            @sort_order, 
-                            @filters_json
-                        );
+                    EXEC [dbo].[GetBranchListDynamic] 
+                        @Env         = @env,
+                        @UserName    = @user_name, 
+                        @PageNumber  = @page_number, 
+                        @PageSize    = @page_size, 
+                        @SearchText  = @search, 
+                        @SortColumn  = @sort_column,
+                        @SortOrder   = @sort_order, 
+                        @FiltersJson = @filters_json     
                 `);
         });
         
