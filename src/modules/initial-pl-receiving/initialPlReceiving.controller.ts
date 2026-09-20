@@ -36,6 +36,10 @@ export class InitialPlReceivingController {
             const sortColum = sortModel[0].field;
             const sortOrder = sortModel[0].sort;
 
+            if (!filename && !si_number) {
+                return c.json([]);
+            }
+
             const response = await this.service.getInitialPlReceiving({
                 user_name, 
                 env, 

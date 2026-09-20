@@ -199,7 +199,11 @@ export class InitialPlReceivingService {
                 sortOrder,
                 filterModel,
             });
-        const response = await this.repository.toConfirm(rows, status, confirmed_receipt_by);
-        return response;
+
+            const store_type = await this.repository.getBranch(branch);
+            const dynamic_status = store_type?.enable_store == 'Y' ? status : '4' // no final receiving
+            
+            const response = await this.repository.toConfirm(rows, dynamic_status, confirmed_receipt_by);
+        return store_type;
     }
 }

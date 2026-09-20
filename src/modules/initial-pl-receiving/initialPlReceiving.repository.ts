@@ -411,5 +411,26 @@ export class InitialPlReceivingRepository {
         }
     }
 
+    async getBranch(branch_code: number) {
+        const db = await getDb();
+        
+        const result = await db
+            .request()
+            .input('branch_code', sql.Int, branch_code)
+            .query(`
+                SELECT b.branch_code, b.store_type, c.enable_store
+                FROM branch as b
+                JOIN ors_pl_receiving_approval as c
+                    ON c.store_type =
+                        CASE
+                            WHEN b.store_type = 'S' THEN 'Store'
+                            WHEN b.store_type = 'W' THEN 'Warehouse'
+                        END 
+                WHERE b.branch_code = @branch_code;
+            `);
+
+        return result.recordset[0] ?? null;
+    }
+
 }
 
