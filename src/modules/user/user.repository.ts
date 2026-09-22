@@ -44,11 +44,22 @@ export class UserRepository {
 
         const allowedFields: Record<string, string> = fields
 
-        const allowedSortFields: Record<string, string> = fields
+        const allowedSortFields: Record<string, string> = {
+            user_name: 'user_name',
+            full_name: 'full_name',
+            description: 'description',
+            position: 'position',
+            email_address: 'email_address',
+            mms: 'mms',
+            env: 'env',
+            branches: 'branches',
+            status: 'status',
+            business_unit: 'business_unit',
+            role_name: 'role_name',
+            branch_names: 'branch_names',
+        };
 
-        // ======================================
         // SEARCH INPUT / QUICK FILTER
-        // ======================================
         if (search?.trim()) {
             conditions.push(`
                 (
@@ -60,17 +71,17 @@ export class UserRepository {
             `);
         }
 
-        // ======================================
         // USERS QUERY
-        // ======================================
         const request = db
             .request()
             .input('offset', sql.Int, offset)
             .input('pageSize', sql.Int, pageSize);
 
-        // ======================================
+        const countRequest = db.request();
+
         // COLUMN FILTERS
-        // ======================================
+        const filterGroups = new Map<string, string[]>();
+
         filterModel.forEach((filter, index) => {
             const column = allowedFields[filter.field];
 
@@ -103,6 +114,13 @@ export class UserRepository {
                     parameterValue = `%${filter.value}%`;
                     break;
 
+                case 'doesNotContain':
+                    if (!filter.value) return;
+
+                    condition = `${column} NOT LIKE @${parameterName}`;
+                    parameterValue = `%${filter.value}%`;
+                    break;
+
                 case 'startsWith':
                     if (!filter.value) return;
 
@@ -129,18 +147,43 @@ export class UserRepository {
                     return;
             }
 
-            conditions.push(condition);
-
             request.input(
                 parameterName,
                 sql.VarChar,
                 parameterValue
             );
+
+            // Count request
+            countRequest.input(
+                parameterName,
+                sql.VarChar,
+                parameterValue
+            );
+
+            // Group conditions by field
+            if (!filterGroups.has(filter.field)) {
+                filterGroups.set(filter.field, []);
+            }
+
+            filterGroups.get(filter.field)!.push(condition);
         });
 
-        // ======================================
+        // ADD FILTER GROUPS TO CONDITIONS
+        for (const [, group] of filterGroups) {
+            if (group.length === 0) continue;
+
+            if (group.length === 1) {
+                const condition = group[0];
+
+                if (condition) {
+                    conditions.push(condition);
+                }
+            } else {
+                conditions.push(`(${group.join(' OR ')})`);
+            }
+        }
+
         // WHERE CLAUSE
-        // ======================================
         const whereClause = conditions.length
             ? `WHERE ${conditions.join(' AND ')}`
             : '';
@@ -154,33 +197,30 @@ export class UserRepository {
             );
         }
 
-        // ======================================
         // SORTING QUERY
-        // ======================================
-        let orderBy = 'u.user_name ASC';
+        let orderBy = 'role_name ASC, full_name ASC';
 
         if (sortModel.length > 0) {
             const sort = sortModel[0];
 
-            const column = allowedSortFields[sort.field];
+            if (sort) {
+                const column = allowedSortFields[sort.field];
 
-            if (column) {
-                const direction = sort.sort === 'desc'
-                    ? 'DESC'
-                    : 'ASC';
-
-                orderBy = `${column} ${direction}`;
+                if (column) {
+                    const direction = sort.sort === 'desc' ? 'DESC' : 'ASC';
+                    orderBy = `${column} ${direction}`;
+                }
             }
         }
+        console.log(orderBy)
+        // let outerOrderBy;
 
-        let outerOrderBy;
-
-        if (orderBy.includes('r.name')) {
-            outerOrderBy = orderBy.replace('r.name', 'pu.role_name');
-        } else {
-            outerOrderBy = orderBy.replace(/^(r|u)\./, 'pu.');
-        }
-    
+        // if (orderBy.includes('r.name')) {
+        //     outerOrderBy = orderBy.replace('r.name', 'pu.role_name');
+        // } else {
+        //     outerOrderBy = orderBy.replace(/^(r|u)\./, 'pu.');
+        // }
+        // console.log(outerOrderBy)
         // // Column filter parameters
         // filterModel.forEach((filter, index) => {
         //     if (!filter.value) return;
@@ -211,15 +251,16 @@ export class UserRepository {
                     u.env,
                     u.assigned_env,
                     u.branches,
-                    u.status,
+                    CASE
+                        WHEN u.status = 'Y' THEN 'Active'
+                        ELSE 'Inactive'
+                    END AS status,
                     u.business_unit,
                     r.name AS role_name,
                     r.id AS role_id
                 FROM users AS u
-
                 LEFT JOIN user_has_roles AS uhr
                     ON uhr.user_id = u.user_id
-
                 LEFT JOIN roles AS r
                     ON r.id = uhr.role_id
 
@@ -231,41 +272,22 @@ export class UserRepository {
             )
 
             SELECT
-                pu.user_id,
-                pu.user_name,
-                pu.full_name,
-                pu.description,
-                pu.position,
-                pu.email_address,
-                pu.mms,
-                pu.env,
-                pu.assigned_env,
-                pu.branches,
-                pu.status,
-                pu.business_unit,
-                pu.role_name,
-                pu.role_id,
-
+                pu.*,
                 STRING_AGG(
                     CONCAT(b.branch_code, ' - ', b.branch_name),
                     ', '
                 ) AS branch_names
-
             FROM PaginatedUsers AS pu
-
             OUTER APPLY (
-                SELECT
-                    TRY_CONVERT(INT, TRIM(value)) AS branch_code
+                SELECT TRY_CONVERT(INT, TRIM(value)) AS branch_code
                 FROM STRING_SPLIT(
                     CAST(pu.branches AS VARCHAR(MAX)),
                     ','
                 )
                 WHERE TRIM(value) <> ''
             ) AS ub
-
             LEFT JOIN branch AS b
                 ON b.branch_code = ub.branch_code
-
             GROUP BY
                 pu.user_id,
                 pu.user_name,
@@ -280,14 +302,11 @@ export class UserRepository {
                 pu.status,
                 pu.business_unit,
                 pu.role_name,
-                pu.role_id
-
-            ORDER BY ${outerOrderBy};
+                pu.role_id;
         `);
 
         // COUNT QUERY
-        const countRequest = db.request();
-
+        // const countRequest = db.request();
         // Search parameter
         if (search?.trim()) {
             countRequest.input(
@@ -298,22 +317,22 @@ export class UserRepository {
         }
 
         // Column filter parameters
-        filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
+        // filterModel.forEach((filter, index) => {
+        //     if (!filter.value) return;
 
-            const column = allowedFields[filter.field];
+        //     const column = allowedFields[filter.field];
 
-            if (!column) return;
+        //     if (!column) return;
 
-            const parameterName = `filterValue${index}`;
+        //     const parameterName = `filterValue${index}`;
 
-            countRequest.input(
-                parameterName,
-                sql.VarChar,
-                `%${filter.value}%`
-            );
-        });
-
+        //     countRequest.input(
+        //         parameterName,
+        //         sql.VarChar,
+        //         `%${filter.value}%`
+        //     );
+        // });
+        
         const countResult = await countRequest.query<{ total: number }>(`
             SELECT COUNT(*) AS total
             FROM users AS u
@@ -323,7 +342,7 @@ export class UserRepository {
                 ON r.id = uhr.role_id
             ${whereClause}
         `);
-
+            console.log(countResult.recordset[0])
         return {
             data: usersResult.recordset,
             total: countResult.recordset[0]?.total ?? 0,
