@@ -192,7 +192,6 @@ export class UserRepository {
             conditions.length > 0
                 ? `WHERE ${conditions.join(' AND ')}`
                 : '';
-        console.log(whereClause)
 
         // REQUEST INPUT
         request.input('offset', sql.Int, offset);
@@ -212,6 +211,7 @@ export class UserRepository {
                     END AS status,
                     u.mms,
                     u.branches,
+                    u.assigned_env,
                     ur.role_id,
                     r.name AS role_name,
                     COUNT(*) OVER() AS total_count
@@ -240,6 +240,7 @@ export class UserRepository {
                 p.role_id,
                 p.role_name,
                 p.total_count,
+                p.assigned_env,
 
                 STRING_AGG(
                     CONCAT(b.branch_code, ' - ', b.branch_name),
@@ -263,7 +264,8 @@ export class UserRepository {
                 p.mms,
                 p.role_id,
                 p.role_name,
-                p.total_count
+                p.total_count,
+                p.assigned_env
 
             ORDER BY ${outerOrderBy};
         `;
@@ -758,137 +760,195 @@ export class UserRepository {
     }) {
         const db = await getDb();
 
+        const FIELDS = {
+            user_name:      { inner: 'u.user_name', outer: 'p.user_name', },
+            full_name:      { inner: 'u.full_name', outer: 'p.full_name', },
+            email_address:  { inner: 'u.email_address', outer: 'p.email_address', },
+            position:       { inner: 'u.position', outer: 'p.position', },
+            status:         { inner: 'status', outer: 'p.status', },
+            role_name:      { inner: 'r.name', outer: 'p.role_name', },
+        }
+
+        // SORTING DATAGRID
+        const sort = sortModel?.[0];
+
+        let innerOrderBy: string;
+
+        if (sort && FIELDS[sort.field as keyof typeof FIELDS]) {
+            const sortColumn = FIELDS[sort.field as keyof typeof FIELDS];
+            const direction = sort.sort === 'desc' ? 'DESC' : 'ASC';
+
+            innerOrderBy = `
+                ${sortColumn.inner} ${direction},
+                u.user_id DESC
+            `;
+
+        } else {
+            innerOrderBy = `
+                r.name ASC,
+                u.full_name ASC,
+                u.user_id DESC
+            `;
+        }
+
+        const request = db
+        .request();
+
         const conditions: string[] = [];
 
-        const fields = {
-            user_name: 'u.user_name',
-            full_name: 'u.full_name',
-            description: 'u.description',
-            position: 'u.position',
-            email_address: 'u.email_address',
-            mms: 'u.mms',
-            env: 'u.env',
-            branches: 'u.branches',
-            status: 'u.status',
-            business_unit: 'u.business_unit',
-            role_name: 'r.name',
-        }
-
-        const allowedFields: Record<string, string> = fields;
-
-        const allowedSortFields: Record<string, string> = fields;
-
-        // =========================
-        // SEARCH INPUT
-        // =========================
-
-        if (search?.trim()) {
-            conditions.push(`
-                (
-                    u.user_name LIKE @search
-                    OR u.full_name LIKE @search
-                )
-            `);
-        }
-
-        // =========================
-        // COLUMN FILTERS
-        // =========================
-
-        filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
-
-            const column = allowedFields[filter.field];
-
-            if (!column) return;
-
-            const parameterName = `filterValue${index}`;
-
-            conditions.push(`${column} LIKE @${parameterName}`);
-        });
-
-        // =========================
-        // SORTING
-        // =========================
-
-        let orderBy = 'u.user_name ASC';
-
-        if (sortModel.length > 0) {
-            const sort = sortModel[0];
-
-            const column = allowedSortFields[sort.field];
-
-            if (column) {
-                const direction = sort.sort === 'desc'
-                    ? 'DESC'
-                    : 'ASC';
-
-                orderBy = `${column} ${direction}`;
-            }
-        }
-
-        const whereClause = conditions.length
-            ? `WHERE ${conditions.join(' AND ')}`
-            : '';
-
-        // =========================
-        // REQUEST
-        // =========================
-
-        const request = db.request();
-
+        // SEARCH DATAGRID
         if (search?.trim()) {
             request.input(
                 'search',
                 sql.VarChar,
                 `%${search.trim()}%`
             );
+
+            conditions.push(`
+                (
+                    u.user_name LIKE @search
+                    OR u.full_name LIKE @search
+                    OR u.email_address LIKE @search
+                    OR u.position LIKE @search
+                    OR r.name LIKE @search
+                )
+            `);
         }
 
-        filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
+        const groupedConditions = new Map<string, string[]>();
 
-            const column = allowedFields[filter.field];
+        // MULTIPLE FILTER
+        for (const [index, filter] of (filterModel ?? []).entries()) {
+            const field = FIELDS[
+                filter.field as keyof typeof FIELDS
+            ];
 
-            if (!column) return;
+            if (!field) {
+                continue;
+            }
 
-            const parameterName = `filterValue${index}`;
+            const value = filter.value?.trim();
 
+            // These operators don't need a value
+            const noValueOperator =
+                filter.operator === 'isEmpty' ||
+                filter.operator === 'isNotEmpty';
+
+            if (!noValueOperator && !value) {
+                continue;
+            }
+
+            const parameter = `filter${index}`;
+            const column = field.inner;
+
+            let condition;
+            let parameterValue;
+
+            switch (filter.operator) {
+                case 'contains':
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `%${value}%`;
+                    break;
+
+                case 'startsWith':
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `${value}%`;
+                    break;
+
+                case 'endsWith':
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `%${value}`;
+                    break;
+
+                case 'equals':
+                    condition = `${column} = @${parameter}`;
+                    parameterValue = value;
+                    break;
+
+                case 'doesNotEqual':
+                    condition = `${column} <> @${parameter}`;
+                    parameterValue = value;
+                    break;
+
+                case 'doesNotContain':
+                    condition = `${column} NOT LIKE @${parameter}`;
+                    parameterValue = `%${value}%`;
+                    break;
+
+                case 'isEmpty':
+                    condition = `(${column} IS NULL OR LTRIM(RTRIM(${column})) = '')`;
+                    break;
+
+                case 'isNotEmpty':
+                    condition = `(${column} IS NOT NULL AND LTRIM(RTRIM(${column})) <> '')`;
+                    break;
+
+                default:
+                    continue;
+            }
             request.input(
-                parameterName,
+                parameter,
                 sql.VarChar,
-                `%${filter.value}%`
+                parameterValue
             );
-        });
 
-        // =========================
-        // NO PAGINATION HERE
-        // =========================
+            const existing = groupedConditions.get(filter.field);
 
-        const result = await request.query<User>(`
+            if (existing) {
+                existing.push(condition);
+            } else {
+                groupedConditions.set(filter.field, [condition]);
+            }
+        }
+
+        for (const fieldConditions of groupedConditions.values()) {
+            if (fieldConditions.length === 0) {
+                continue;
+            }
+
+            conditions.push(
+                fieldConditions.length === 1
+                    ? fieldConditions[0]!
+                    : `(${fieldConditions.join(' OR ')})`
+            );
+        }
+
+        // WHERE CLAUSE
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(' AND ')}`
+                : '';
+
+        const query = `
             SELECT
                 u.user_id,
                 u.user_name,
                 u.full_name,
-                u.description,
-                u.position,
                 u.email_address,
+                u.position,
+                CASE
+                    WHEN u.status = 'Y' THEN 'Active'
+                    ELSE 'Inactive'
+                END AS status,
                 u.mms,
-                u.env,
                 u.branches,
-                u.status,
-                u.business_unit,
+                u.assigned_env as env,
+                ur.role_id,
                 r.name AS role_name,
-                r.id as role_id
-            FROM users as u
-            LEFT JOIN user_has_roles as uhr
-                ON uhr.user_id = u.user_id
-            LEFT JOIN roles as r
-                ON r.id = uhr.role_id
+                COUNT(*) OVER() AS total_count
+            FROM users u
+            LEFT JOIN user_has_roles ur
+                ON ur.user_id = u.user_id
+            LEFT JOIN roles r
+                ON r.id = ur.role_id
+
             ${whereClause}
-            ORDER BY ${orderBy}
-        `);
-        
+            
+            ORDER BY ${innerOrderBy}
+        `;
+
+        const result = await request.query(query);
+
         return result.recordset;
     }
 
@@ -901,138 +961,196 @@ export class UserRepository {
         filterModel: UserFilter[];
         sortModel: any;
     }) {
-        const db = await getDb();
+         const db = await getDb();
+
+        const FIELDS = {
+            user_name:      { inner: 'u.user_name', outer: 'p.user_name', },
+            full_name:      { inner: 'u.full_name', outer: 'p.full_name', },
+            email_address:  { inner: 'u.email_address', outer: 'p.email_address', },
+            position:       { inner: 'u.position', outer: 'p.position', },
+            status:         { inner: 'status', outer: 'p.status', },
+            role_name:      { inner: 'r.name', outer: 'p.role_name', },
+        }
+
+        // SORTING DATAGRID
+        const sort = sortModel?.[0];
+
+        let innerOrderBy: string;
+
+        if (sort && FIELDS[sort.field as keyof typeof FIELDS]) {
+            const sortColumn = FIELDS[sort.field as keyof typeof FIELDS];
+            const direction = sort.sort === 'desc' ? 'DESC' : 'ASC';
+
+            innerOrderBy = `
+                ${sortColumn.inner} ${direction},
+                u.user_id DESC
+            `;
+
+        } else {
+            innerOrderBy = `
+                r.name ASC,
+                u.full_name ASC,
+                u.user_id DESC
+            `;
+        }
+
+        const request = db
+        .request();
 
         const conditions: string[] = [];
 
-        const fields = {
-            user_name: 'u.user_name',
-            full_name: 'u.full_name',
-            description: 'u.description',
-            position: 'u.position',
-            email_address: 'u.email_address',
-            mms: 'u.mms',
-            env: 'u.env',
-            branches: 'u.branches',
-            status: 'u.status',
-            business_unit: 'u.business_unit',
-            role_name: 'r.name',
-        }
-
-        const allowedFields: Record<string, string> = fields;
-
-        const allowedSortFields: Record<string, string> = fields;
-
-        // =========================
-        // SEARCH INPUT
-        // =========================
-
-        if (search?.trim()) {
-            conditions.push(`
-                (
-                    u.user_name LIKE @search
-                    OR u.full_name LIKE @search
-                )
-            `);
-        }
-
-        // =========================
-        // COLUMN FILTERS
-        // =========================
-
-        filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
-
-            const column = allowedFields[filter.field];
-
-            if (!column) return;
-
-            const parameterName = `filterValue${index}`;
-
-            conditions.push(`${column} LIKE @${parameterName}`);
-        });
-
-        // =========================
-        // SORTING
-        // =========================
-
-        let orderBy = 'u.user_name ASC';
-
-        if (sortModel.length > 0) {
-            const sort = sortModel[0];
-
-            const column = allowedSortFields[sort.field];
-
-            if (column) {
-                const direction = sort.sort === 'desc'
-                    ? 'DESC'
-                    : 'ASC';
-
-                orderBy = `${column} ${direction}`;
-            }
-        }
-
-        const whereClause = conditions.length
-            ? `WHERE ${conditions.join(' AND ')}`
-            : '';
-
-        // =========================
-        // REQUEST
-        // =========================
-
-        const request = db.request();
-
+        // SEARCH DATAGRID
         if (search?.trim()) {
             request.input(
                 'search',
                 sql.VarChar,
                 `%${search.trim()}%`
             );
+
+            conditions.push(`
+                (
+                    u.user_name LIKE @search
+                    OR u.full_name LIKE @search
+                    OR u.email_address LIKE @search
+                    OR u.position LIKE @search
+                    OR r.name LIKE @search
+                )
+            `);
         }
 
-        filterModel.forEach((filter, index) => {
-            if (!filter.value) return;
+        const groupedConditions = new Map<string, string[]>();
 
-            const column = allowedFields[filter.field];
+        // MULTIPLE FILTER
+        for (const [index, filter] of (filterModel ?? []).entries()) {
+            const field = FIELDS[
+                filter.field as keyof typeof FIELDS
+            ];
 
-            if (!column) return;
+            if (!field) {
+                continue;
+            }
 
-            const parameterName = `filterValue${index}`;
+            const value = filter.value?.trim();
 
+            // These operators don't need a value
+            const noValueOperator =
+                filter.operator === 'isEmpty' ||
+                filter.operator === 'isNotEmpty';
+
+            if (!noValueOperator && !value) {
+                continue;
+            }
+
+            const parameter = `filter${index}`;
+            const column = field.inner;
+
+            let condition;
+            let parameterValue;
+
+            switch (filter.operator) {
+                case 'contains':
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `%${value}%`;
+                    break;
+
+                case 'startsWith':
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `${value}%`;
+                    break;
+
+                case 'endsWith':
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `%${value}`;
+                    break;
+
+                case 'equals':
+                    condition = `${column} = @${parameter}`;
+                    parameterValue = value;
+                    break;
+
+                case 'doesNotEqual':
+                    condition = `${column} <> @${parameter}`;
+                    parameterValue = value;
+                    break;
+
+                case 'doesNotContain':
+                    condition = `${column} NOT LIKE @${parameter}`;
+                    parameterValue = `%${value}%`;
+                    break;
+
+                case 'isEmpty':
+                    condition = `(${column} IS NULL OR LTRIM(RTRIM(${column})) = '')`;
+                    break;
+
+                case 'isNotEmpty':
+                    condition = `(${column} IS NOT NULL AND LTRIM(RTRIM(${column})) <> '')`;
+                    break;
+
+                default:
+                    continue;
+            }
             request.input(
-                parameterName,
+                parameter,
                 sql.VarChar,
-                `%${filter.value}%`
+                parameterValue
             );
-        });
 
-        // =========================
-        // NO PAGINATION HERE
-        // =========================
+            const existing = groupedConditions.get(filter.field);
 
-        const result = await request.query<User>(`
+            if (existing) {
+                existing.push(condition);
+            } else {
+                groupedConditions.set(filter.field, [condition]);
+            }
+        }
+
+        for (const fieldConditions of groupedConditions.values()) {
+            if (fieldConditions.length === 0) {
+                continue;
+            }
+
+            conditions.push(
+                fieldConditions.length === 1
+                    ? fieldConditions[0]!
+                    : `(${fieldConditions.join(' OR ')})`
+            );
+        }
+
+        // WHERE CLAUSE
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(' AND ')}`
+                : '';
+
+        const query = `
             SELECT
                 u.user_id,
                 u.user_name,
                 u.full_name,
-                u.description,
-                u.position,
                 u.email_address,
+                u.position,
+                CASE
+                    WHEN u.status = 'Y' THEN 'Active'
+                    ELSE 'Inactive'
+                END AS status,
                 u.mms,
-                u.env,
                 u.branches,
-                u.status,
-                u.business_unit,
+                u.assigned_env as env,
+                ur.role_id,
                 r.name AS role_name,
-                r.id as role_id
-            FROM users as u
-            LEFT JOIN user_has_roles as uhr
-                ON uhr.user_id = u.user_id
-            LEFT JOIN roles as r
-                ON r.id = uhr.role_id
+                COUNT(*) OVER() AS total_count
+            FROM users u
+            LEFT JOIN user_has_roles ur
+                ON ur.user_id = u.user_id
+            LEFT JOIN roles r
+                ON r.id = ur.role_id
+
             ${whereClause}
-            ORDER BY ${orderBy}
-        `);
+            
+            ORDER BY ${innerOrderBy}
+        `;
+
+        const result = await request.query(query);
 
         return result.recordset;
     }
