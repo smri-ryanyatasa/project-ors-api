@@ -389,4 +389,57 @@ export class UserController {
         }
     }
 
+    async getMMSUsers(c: Context): Promise<Response> {
+        try {
+            const response = await this.service.getMMSUsers();
+            return c.json(response);
+
+        }  catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async createMmsUser(c: Context) {
+        try {
+            const body = await c.req.json();
+
+            const user = await this.service.createMmsUser(body);
+
+            return c.json(
+                {
+                    status: 'success',
+                    data: user,
+                },
+                201
+            );
+        } catch (error) {
+            if (
+                error instanceof Error &&
+                error.message === 'Username already exists.'
+            ) {
+                return c.json(
+                    {
+                        status: 'error',
+                        message: error.message,
+                    },
+                    409
+                );
+            }
+            console.log(error)
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
 }

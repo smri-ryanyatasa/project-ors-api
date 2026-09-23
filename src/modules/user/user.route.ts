@@ -16,6 +16,8 @@ userRoute.get('/csv-export', (c) => controller.csvExport(c));
 userRoute.get('/excel-export', (c) => controller.excelExport(c));
 userRoute.get('/branches', (c) => controller.getBranches(c));
 userRoute.get('/assigned-branch', (c) => controller.getAssignedBranch(c));
+userRoute.get('/mms-users', (c) => controller.getMMSUsers(c));
+userRoute.post('/create-mms-users', (c) => controller.createMmsUser(c));
 
 userRoute.get('/:user_id', (c) => controller.getUserById(c));
 userRoute.post('/', (c) => controller.createUser(c));

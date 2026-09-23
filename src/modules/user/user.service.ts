@@ -161,7 +161,7 @@ export class UserService {
             payload.map(async (user) => ({
                 ...user,
                 password: hashedPassword,
-                mms: 'Y', // change for the future
+                mms: 'N', // change for the future
                 env: env
             }))
         );
@@ -220,6 +220,48 @@ export class UserService {
         const response = await this.repository.assignedBranch(user_name);
 
         return response;
+    }
+
+    async getMMSUsers() {
+        const response = await this.repository.mmsusers();
+
+        return response;
+    }
+
+    async createMmsUser(users: any[]) {
+        const arrayUsernames = users.map((user: any) => user.user_name);
+
+        const existing = await this.repository.findByUsernames(arrayUsernames);
+
+        if (existing.length > 0) {
+            return {
+                success: false,
+                message: 'Usernames already exist.',
+                usernames: existing,
+            };
+
+        }
+
+        const hashedPassword = await hashPassword(this.DEFAULT_PASSWORD);
+
+        const hashedPayload = await Promise.all(
+            users.map(async (user) => ({
+                ...user,
+                password: hashedPassword,
+                mms: 'Y',
+            }))
+        );
+
+         for (let i = 0; i < hashedPayload.length; i += this.CHUNK_SIZE) {
+            const chunk = hashedPayload.slice(i, i + this.CHUNK_SIZE);
+
+            await this.repository.createMmsUser(chunk); 
+        }
+        
+        return {
+            success: true,
+            message: `${users.length} users has successfully created`
+        };
     }
     
 }

@@ -40,7 +40,7 @@ export const UpdateUserSchema = z.object({
     full_name: z.string(),
     description: z.string().nullish(),
     position: z.string(),
-    email_address:  z.email(),
+    email_address: z.email().nullish().or(z.literal('')),
     mms: z.string().length(1),
     env: z.string().nullable(),
     branches: z.string(),
