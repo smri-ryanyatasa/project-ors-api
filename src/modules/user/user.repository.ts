@@ -18,335 +18,262 @@ export class UserRepository {
         search: string;
         filterModel: UserFilter[];
         sortModel: any
-    }): Promise<{
-        data: User[];
-        total: number;
-    }>  {
+    })  {
         const db = await getDb();
 
         const offset = (page - 1) * pageSize;
 
-        const conditions: string[] = [];
-
-        const fields = {
-            user_name: 'u.user_name',
-            full_name: 'u.full_name',
-            description: 'u.description',
-            position: 'u.position',
-            email_address: 'u.email_address',
-            mms: 'u.mms',
-            env: 'u.env',
-            branches: 'u.branches',
-            status: 'u.status',
-            business_unit: 'u.business_unit',
-            role_name: 'r.name',
+        const FIELDS = {
+            user_name:      { inner: 'u.user_name', outer: 'p.user_name', },
+            full_name:      { inner: 'u.full_name', outer: 'p.full_name', },
+            email_address:  { inner: 'u.email_address', outer: 'p.email_address', },
+            position:       { inner: 'u.position', outer: 'p.position', },
+            status:         { inner: 'status', outer: 'p.status', },
+            role_name:      { inner: 'r.name', outer: 'p.role_name', },
         }
 
-        const allowedFields: Record<string, string> = fields
+        // SORTING DATAGRID
+        const sort = sortModel?.[0];
 
-        const allowedSortFields: Record<string, string> = {
-            user_name: 'user_name',
-            full_name: 'full_name',
-            description: 'description',
-            position: 'position',
-            email_address: 'email_address',
-            mms: 'mms',
-            env: 'env',
-            branches: 'branches',
-            status: 'status',
-            business_unit: 'business_unit',
-            role_name: 'role_name',
-            branch_names: 'branch_names',
-        };
+        let innerOrderBy: string;
+        let outerOrderBy: string;
 
-        // SEARCH INPUT / QUICK FILTER
+        if (sort && FIELDS[sort.field as keyof typeof FIELDS]) {
+            const sortColumn = FIELDS[sort.field as keyof typeof FIELDS];
+            const direction = sort.sort === 'desc' ? 'DESC' : 'ASC';
+
+            innerOrderBy = `
+                ${sortColumn.inner} ${direction},
+                u.user_id DESC
+            `;
+
+            outerOrderBy = `
+                ${sortColumn.outer} ${direction},
+                p.user_id DESC
+            `;
+        } else {
+            innerOrderBy = `
+                r.name ASC,
+                u.full_name ASC,
+                u.user_id DESC
+            `;
+
+            outerOrderBy = `
+                p.role_name ASC,
+                p.full_name ASC,
+                p.user_id DESC
+            `;
+        }
+
+        const request = db
+        .request();
+
+        const conditions: string[] = [];
+
+        // SEARCH DATAGRID
         if (search?.trim()) {
+            request.input(
+                'search',
+                sql.VarChar,
+                `%${search.trim()}%`
+            );
+
             conditions.push(`
                 (
                     u.user_name LIKE @search
                     OR u.full_name LIKE @search
+                    OR u.email_address LIKE @search
                     OR u.position LIKE @search
                     OR r.name LIKE @search
                 )
             `);
         }
 
-        // USERS QUERY
-        const request = db
-            .request()
-            .input('offset', sql.Int, offset)
-            .input('pageSize', sql.Int, pageSize);
+        const groupedConditions = new Map<string, string[]>();
 
-        const countRequest = db.request();
+        // MULTIPLE FILTER
+        for (const [index, filter] of (filterModel ?? []).entries()) {
+            const field = FIELDS[
+                filter.field as keyof typeof FIELDS
+            ];
 
-        // COLUMN FILTERS
-        const filterGroups = new Map<string, string[]>();
+            if (!field) {
+                continue;
+            }
 
-        filterModel.forEach((filter, index) => {
-            const column = allowedFields[filter.field];
+            const value = filter.value?.trim();
 
-            if (!column) return;
+            // These operators don't need a value
+            const noValueOperator =
+                filter.operator === 'isEmpty' ||
+                filter.operator === 'isNotEmpty';
 
-            const parameterName = `filterValue${index}`;
+            if (!noValueOperator && !value) {
+                continue;
+            }
 
-            let condition: string;
-            let parameterValue: string;
+            const parameter = `filter${index}`;
+            const column = field.inner;
+
+            let condition;
+            let parameterValue;
 
             switch (filter.operator) {
-                case 'equals':
-                    if (!filter.value) return;
-
-                    condition = `${column} = @${parameterName}`;
-                    parameterValue = filter.value;
-                    break;
-
-                case 'doesNotEqual':
-                    if (!filter.value) return;
-
-                    condition = `${column} <> @${parameterName}`;
-                    parameterValue = filter.value;
-                    break;
-
                 case 'contains':
-                    if (!filter.value) return;
-
-                    condition = `${column} LIKE @${parameterName}`;
-                    parameterValue = `%${filter.value}%`;
-                    break;
-
-                case 'doesNotContain':
-                    if (!filter.value) return;
-
-                    condition = `${column} NOT LIKE @${parameterName}`;
-                    parameterValue = `%${filter.value}%`;
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `%${value}%`;
                     break;
 
                 case 'startsWith':
-                    if (!filter.value) return;
-
-                    condition = `${column} LIKE @${parameterName}`;
-                    parameterValue = `${filter.value}%`;
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `${value}%`;
                     break;
 
                 case 'endsWith':
-                    if (!filter.value) return;
+                    condition = `${column} LIKE @${parameter}`;
+                    parameterValue = `%${value}`;
+                    break;
 
-                    condition = `${column} LIKE @${parameterName}`;
-                    parameterValue = `%${filter.value}`;
+                case 'equals':
+                    condition = `${column} = @${parameter}`;
+                    parameterValue = value;
+                    break;
+
+                case 'doesNotEqual':
+                    condition = `${column} <> @${parameter}`;
+                    parameterValue = value;
+                    break;
+
+                case 'doesNotContain':
+                    condition = `${column} NOT LIKE @${parameter}`;
+                    parameterValue = `%${value}%`;
                     break;
 
                 case 'isEmpty':
-                    conditions.push(`(${column} IS NULL OR ${column} = '')`);
-                    return;
+                    condition = `(${column} IS NULL OR LTRIM(RTRIM(${column})) = '')`;
+                    break;
 
                 case 'isNotEmpty':
-                    conditions.push(`(${column} IS NOT NULL AND ${column} <> '')`);
-                    return;
+                    condition = `(${column} IS NOT NULL AND LTRIM(RTRIM(${column})) <> '')`;
+                    break;
 
                 default:
-                    return;
+                    continue;
             }
-
             request.input(
-                parameterName,
+                parameter,
                 sql.VarChar,
                 parameterValue
             );
 
-            // Count request
-            countRequest.input(
-                parameterName,
-                sql.VarChar,
-                parameterValue
-            );
+            const existing = groupedConditions.get(filter.field);
 
-            // Group conditions by field
-            if (!filterGroups.has(filter.field)) {
-                filterGroups.set(filter.field, []);
-            }
-
-            filterGroups.get(filter.field)!.push(condition);
-        });
-
-        // ADD FILTER GROUPS TO CONDITIONS
-        for (const [, group] of filterGroups) {
-            if (group.length === 0) continue;
-
-            if (group.length === 1) {
-                const condition = group[0];
-
-                if (condition) {
-                    conditions.push(condition);
-                }
+            if (existing) {
+                existing.push(condition);
             } else {
-                conditions.push(`(${group.join(' OR ')})`);
+                groupedConditions.set(filter.field, [condition]);
             }
+        }
+
+        for (const fieldConditions of groupedConditions.values()) {
+            if (fieldConditions.length === 0) {
+                continue;
+            }
+
+            conditions.push(
+                fieldConditions.length === 1
+                    ? fieldConditions[0]!
+                    : `(${fieldConditions.join(' OR ')})`
+            );
         }
 
         // WHERE CLAUSE
-        const whereClause = conditions.length
-            ? `WHERE ${conditions.join(' AND ')}`
-            : '';
+        const whereClause =
+            conditions.length > 0
+                ? `WHERE ${conditions.join(' AND ')}`
+                : '';
+        console.log(whereClause)
 
-        // Search parameter
-        if (search?.trim()) {
-            request.input(
-                'search',
-                sql.VarChar,
-                `%${search.trim()}%`
-            );
-        }
+        // REQUEST INPUT
+        request.input('offset', sql.Int, offset);
+        request.input('pageSize', sql.Int, pageSize);
 
-        // SORTING QUERY
-        let orderBy = 'role_name ASC, full_name ASC';
-
-        if (sortModel.length > 0) {
-            const sort = sortModel[0];
-
-            if (sort) {
-                const column = allowedSortFields[sort.field];
-
-                if (column) {
-                    const direction = sort.sort === 'desc' ? 'DESC' : 'ASC';
-                    orderBy = `${column} ${direction}`;
-                }
-            }
-        }
-        console.log(orderBy)
-        // let outerOrderBy;
-
-        // if (orderBy.includes('r.name')) {
-        //     outerOrderBy = orderBy.replace('r.name', 'pu.role_name');
-        // } else {
-        //     outerOrderBy = orderBy.replace(/^(r|u)\./, 'pu.');
-        // }
-        // console.log(outerOrderBy)
-        // // Column filter parameters
-        // filterModel.forEach((filter, index) => {
-        //     if (!filter.value) return;
-
-        //     const column = allowedFields[filter.field];
-
-        //     if (!column) return;
-
-        //     const parameterName = `filterValue${index}`;
-
-        //     request.input(
-        //         parameterName,
-        //         sql.VarChar,
-        //         `%${filter.value}%`
-        //     );
-        // });
-
-        const usersResult = await request.query<User>(`
+        const query = `
             WITH PaginatedUsers AS (
                 SELECT
                     u.user_id,
                     u.user_name,
                     u.full_name,
-                    u.description,
-                    u.position,
                     u.email_address,
-                    u.mms,
-                    u.env,
-                    u.assigned_env,
-                    u.branches,
+                    u.position,
                     CASE
                         WHEN u.status = 'Y' THEN 'Active'
                         ELSE 'Inactive'
                     END AS status,
-                    u.business_unit,
+                    u.mms,
+                    u.branches,
+                    ur.role_id,
                     r.name AS role_name,
-                    r.id AS role_id
-                FROM users AS u
-                LEFT JOIN user_has_roles AS uhr
-                    ON uhr.user_id = u.user_id
-                LEFT JOIN roles AS r
-                    ON r.id = uhr.role_id
+                    COUNT(*) OVER() AS total_count
+                FROM users u
+                LEFT JOIN user_has_roles ur
+                    ON ur.user_id = u.user_id
+                LEFT JOIN roles r
+                    ON r.id = ur.role_id
 
                 ${whereClause}
+                
+                ORDER BY ${innerOrderBy}
 
-                ORDER BY ${orderBy}
                 OFFSET @offset ROWS
                 FETCH NEXT @pageSize ROWS ONLY
             )
 
             SELECT
-                pu.*,
+                p.user_id,
+                p.user_name,
+                p.full_name,
+                p.email_address,
+                p.position,
+                p.status,
+                p.mms,
+                p.role_id,
+                p.role_name,
+                p.total_count,
+
                 STRING_AGG(
                     CONCAT(b.branch_code, ' - ', b.branch_name),
                     ', '
-                ) AS branch_names
-            FROM PaginatedUsers AS pu
-            OUTER APPLY (
-                SELECT TRY_CONVERT(INT, TRIM(value)) AS branch_code
-                FROM STRING_SPLIT(
-                    CAST(pu.branches AS VARCHAR(MAX)),
-                    ','
-                )
-                WHERE TRIM(value) <> ''
-            ) AS ub
-            LEFT JOIN branch AS b
-                ON b.branch_code = ub.branch_code
+                ) AS branches
+
+            FROM PaginatedUsers p
+
+            OUTER APPLY STRING_SPLIT(p.branches, ',') s
+
+            LEFT JOIN branch b
+                ON b.branch_code = TRIM(s.value)
+
             GROUP BY
-                pu.user_id,
-                pu.user_name,
-                pu.full_name,
-                pu.description,
-                pu.position,
-                pu.email_address,
-                pu.mms,
-                pu.env,
-                pu.assigned_env,
-                pu.branches,
-                pu.status,
-                pu.business_unit,
-                pu.role_name,
-                pu.role_id;
-        `);
+                p.user_id,
+                p.user_name,
+                p.full_name,
+                p.email_address,
+                p.position,
+                p.status,
+                p.mms,
+                p.role_id,
+                p.role_name,
+                p.total_count
 
-        // COUNT QUERY
-        // const countRequest = db.request();
-        // Search parameter
-        if (search?.trim()) {
-            countRequest.input(
-                'search',
-                sql.VarChar,
-                `%${search.trim()}%`
-            );
-        }
+            ORDER BY ${outerOrderBy};
+        `;
 
-        // Column filter parameters
-        // filterModel.forEach((filter, index) => {
-        //     if (!filter.value) return;
+        const result = await request.query(query);
 
-        //     const column = allowedFields[filter.field];
-
-        //     if (!column) return;
-
-        //     const parameterName = `filterValue${index}`;
-
-        //     countRequest.input(
-        //         parameterName,
-        //         sql.VarChar,
-        //         `%${filter.value}%`
-        //     );
-        // });
-        
-        const countResult = await countRequest.query<{ total: number }>(`
-            SELECT COUNT(*) AS total
-            FROM users AS u
-            LEFT JOIN user_has_roles AS uhr
-                ON uhr.user_id = u.user_id
-            LEFT JOIN roles AS r
-                ON r.id = uhr.role_id
-            ${whereClause}
-        `);
-            console.log(countResult.recordset[0])
         return {
-            data: usersResult.recordset,
-            total: countResult.recordset[0]?.total ?? 0,
-        };
+            data: result.recordset,
+            total: result.recordset[0]?.total_count ?? 0,
+        }
     }
 
     async findById(userId: number): Promise<User | null> {
@@ -1143,5 +1070,84 @@ export class UserRepository {
 
         return result.recordset;
     } 
+
+    async mmsusers(): Promise<Response[]> {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .query(`
+                SELECT m.*
+                FROM mms_users AS m
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM users AS u
+                    WHERE u.user_name = m.user_name
+                );
+            `);
+        
+        return result.recordset;
+    } 
     
+    async createMmsUser(payload: any[]): Promise<void> {
+        const db = await getDb();
+        const transaction = new sql.Transaction(db);
+
+        try {
+            await transaction.begin();
+
+            const request = new sql.Request(transaction);
+
+            const userValues = payload.map((_, index) => {
+                return `(
+                    @user_name_${index},
+                    @password_${index},
+                    @mms_${index},
+                    @status_${index},
+                    @created_by_${index}
+                )`;
+            });
+
+            payload.forEach((user, index) => {
+                request.input(`user_name_${index}`, sql.VarChar(100), user.user_name);
+                request.input(`password_${index}`, sql.VarChar(255), user.password);
+                request.input(`mms_${index}`, sql.VarChar(100), user.mms);
+                request.input(`status_${index}`, sql.VarChar(50), 'Y');
+                request.input(`created_by_${index}`, sql.Int, user.created_by);
+            });
+
+            await request.query(`
+                DECLARE @InsertedUsers TABLE (
+                    user_id INT,
+                    user_name VARCHAR(100)
+                );
+
+                INSERT INTO users (
+                    user_name,
+                    password,
+                    mms,
+                    status,
+                    created_by
+                )
+                OUTPUT
+                    inserted.user_id,
+                    inserted.user_name
+                INTO @InsertedUsers (
+                    user_id,
+                    user_name
+                )
+                VALUES ${userValues.join(', ')};
+             
+                SELECT
+                    iu.user_id
+                FROM @InsertedUsers AS iu
+            `);
+
+            await transaction.commit();
+
+        } catch (error) {
+            await transaction.rollback();
+            throw error;
+        }
+    }
 }
