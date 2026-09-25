@@ -1268,4 +1268,83 @@ export class UserRepository {
             throw error;
         }
     }
+
+    async saveFilter(userId: number, payload: any): Promise<Response[]> {
+         const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('userId', sql.Int, userId)
+            .input('gridKey', sql.VarChar(50), payload.gridKey)
+            .input('name', sql.VarChar(100), payload.name)
+            .input('search', sql.VarChar(500), payload.search ?? null)
+            .input('filters', sql.NVarChar(sql.MAX), JSON.stringify(payload.filters))
+            .query(`
+                INSERT INTO saved_filters (
+                    user_id,
+                    grid_key,
+                    name,
+                    search,
+                    filters
+                )
+                OUTPUT INSERTED.*
+                VALUES (
+                    @userId,
+                    @gridKey,
+                    @name,
+                    @search,
+                    @filters
+                )
+            `);
+
+        return result.recordset[0];
+    }
+
+    async getSaveFilter(user: any, grid_key: string) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('user_id', sql.Int, user.user_id)
+            .input('grid_key', sql.VarChar, grid_key)
+            .query(`
+                SELECT 
+                   *
+                FROM saved_filters
+                WHERE user_id = @user_id AND grid_key = @grid_key
+            `);
+        
+        return result.recordset;
+    }
+
+    async deleteSaveFilter(filter_id: number) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('filter_id', sql.Int, filter_id)
+            .query(`
+                DELETE FROM saved_filters
+                WHERE id = @filter_id
+            `);
+        
+        return result.recordset;
+    }
+
+    async updateSaveFilter(payload: any) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('filter_id', sql.Int, payload.id)
+            .input('name', sql.VarChar, payload.name)
+            .query(`
+            UPDATE saved_filters
+                SET
+                    name = @name
+                WHERE id = @filter_id;
+            `);
+
+        return result;
+    }
 }
