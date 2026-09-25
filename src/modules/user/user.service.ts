@@ -263,5 +263,25 @@ export class UserService {
             message: `${users.length} users has successfully created`
         };
     }
+
+    async saveFilter(userId: number, payload: any[]) {
+        const response = await this.repository.saveFilter(userId, payload);
+        return response; 
+    }
+
+    async getSaveFilter(user: any, grid_key: string) {
+        const response = await this.repository.getSaveFilter(user, grid_key);
+        return response;
+    }
+
+    async deleteSaveFilter(filter_id: number) {
+        const response = await this.repository.deleteSaveFilter(filter_id);
+        return response;
+    }
+
+    async updateSaveFilter(payload: any) {
+        const user = await this.repository.updateSaveFilter(payload);
+        return user;
+    }
     
 }

@@ -442,4 +442,91 @@ export class UserController {
         }
     }
 
+    async saveFilter(c: Context): Promise<Response> {
+        try {
+            const user = c.get('user');
+
+            const body = await c.req.json();
+            
+            const response = await this.service.saveFilter(user.user_id, body);
+
+            return c.json(
+                {
+                    status: 'success',
+                    data: response
+                },
+                201
+            );
+        } catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async getSaveFilter(c: Context): Promise<Response> {
+        try {
+            const user = c.get('user');
+
+            const grid_key = c.req.query('gridKey') || '';
+
+            const response = await this.service.getSaveFilter(user, grid_key);
+
+            return c.json(response);
+        } catch(error) {
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async deleteSaveFilter(c: Context): Promise<Response> {
+        try {
+            const filter_id =  Number(c.req.param('filter_id'));
+
+            const response = await this.service.deleteSaveFilter(filter_id);
+
+            return c.json(response);
+        } catch(error) {
+            console.log(error)
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async updateSaveFilter(c: Context): Promise<Response> {
+        try {
+            const filter_id =  Number(c.req.param('filter_id'));
+
+            const body = await c.req.json();
+
+            const user = await this.service.updateSaveFilter(body);
+
+            return c.json(user);
+        } catch (error) {
+
+
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
 }
+
