@@ -12,11 +12,11 @@ export class AuthRepository {
             .input('user_name', sql.VarChar, userName)
             .query(`
                 SELECT
-                    user_id,
-                    user_name,
-                    password,
-                    assigned_env
-                FROM users
+                    u.*,
+                    uhr.role_id
+                FROM users u
+                LEFT JOIN user_has_roles uhr
+                ON uhr.user_id = u.user_id
                 WHERE user_name = @user_name
             `);
 

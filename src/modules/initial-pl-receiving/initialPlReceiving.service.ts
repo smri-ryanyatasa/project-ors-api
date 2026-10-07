@@ -204,6 +204,11 @@ export class InitialPlReceivingService {
             const dynamic_status = store_type?.enable_store == 'Y' ? status : '4' // no final receiving
             
             const response = await this.repository.toConfirm(rows, dynamic_status, confirmed_receipt_by);
+
+            if (response && dynamic_status == '4') {
+                console.log(rows)
+                // CALL MMS API AND PASS APPROVED RECEIPT DATA
+            }
         return store_type;
     }
 }

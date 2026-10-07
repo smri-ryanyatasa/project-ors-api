@@ -161,6 +161,11 @@ export class FinalPlReceivingService {
 
         const action = await this.repository.approvedUpdate(response, status, last_update_by);
 
+        if (action) {
+            console.log(action)
+            // CALL MMS API AND PASS APPROVED RECEIPT DATA
+        }
+
         return action;
     }
 

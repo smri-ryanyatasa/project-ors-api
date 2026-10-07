@@ -21,6 +21,8 @@ userRoute.post('/create-mms-users', (c) => controller.createMmsUser(c));
 userRoute.get('/save-filter', (c) => controller.getSaveFilter(c));
 userRoute.post('/save-filter', (c) => controller.saveFilter(c));
 
+userRoute.post('/update-current-env', (c) => controller.updateCurrentEnv(c));
+
 userRoute.get('/:user_id', (c) => controller.getUserById(c));
 userRoute.post('/', (c) => controller.createUser(c));
 userRoute.put('/:user_id', (c) => controller.updateUser(c));

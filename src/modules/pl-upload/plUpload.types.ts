@@ -52,5 +52,6 @@ export interface PlsCreate {
     rows: any[],
     source_file_id: number,
     uploaded_date: Date,
-    user_name: string
+    user_name: string,
+    vendor_tag: string
 }

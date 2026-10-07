@@ -372,9 +372,11 @@ export class UserController {
 
     async getAssignedBranch(c: Context): Promise<Response> {
         try {
+            const env = c.req.query('env') ?? '';
+
             const user = c.get('user');
 
-            const response = await this.service.getAssignedBranch(user.user_name);
+            const response = await this.service.getAssignedBranch(user.user_name, env);
 
             return c.json(response);
 
@@ -516,6 +518,28 @@ export class UserController {
             const user = await this.service.updateSaveFilter(body);
 
             return c.json(user);
+        } catch (error) {
+
+
+            return c.json(
+                {
+                    status: 'error',
+                    message: 'Something went wrong.',
+                },
+                500
+            );
+        }
+    }
+
+    async updateCurrentEnv(c: Context): Promise<Response> {
+        try {
+            const user = c.get('user');
+
+            const body = await c.req.json();
+            
+            const data = await this.service.updateCurrentEnv(user.user_id, body);
+
+            return c.json(data);
         } catch (error) {
 
 

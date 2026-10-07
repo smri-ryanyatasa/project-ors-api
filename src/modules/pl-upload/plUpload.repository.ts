@@ -256,6 +256,7 @@ export class PlUploadRepository {
                     .input('status', sql.Int, payload.status)
                     .input('tran_date', sql.DateTime, payload.tran_date)
                     .input('result', sql.VarChar, payload.result)
+                    .input('vendor_tag', sql.VarChar, payload.vendor_tag)
 
                     .query(`
                         DECLARE @Inserted TABLE (
@@ -277,7 +278,8 @@ export class PlUploadRepository {
                             upload_attempts,
                             status,
                             tran_date,
-                            result
+                            result,
+                            vendor_tag
                         )
                         OUTPUT INSERTED.source_file_id
                         INTO @Inserted (source_file_id)
@@ -296,7 +298,8 @@ export class PlUploadRepository {
                             @uploaded_attempts,
                             @status,
                             @tran_date,
-                            @result
+                            @result,
+                            @vendor_tag
                         )
 
                         SELECT source_file_id
