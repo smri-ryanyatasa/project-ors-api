@@ -142,7 +142,7 @@ export class PlUploadService {
     }
 
     async plUpload(payload: PlsCreate) {
-        const assignedBranch = await this.userRepository.assignedBranch(payload.user_name);
+        const assignedBranch = await this.userRepository.assignedBranch(payload.user_name, payload.env);
         
         const existingBranch = assignedBranch.some((branch) => branch.branch_code === Number(payload.branch_code))
 
@@ -162,7 +162,7 @@ export class PlUploadService {
     }
 
     async plReUpload(payload: PlsCreate) {
-        const assignedBranch = await this.userRepository.assignedBranch(payload.user_name);
+        const assignedBranch = await this.userRepository.assignedBranch(payload.user_name, payload.env);
         
         const existingBranch = assignedBranch.some((branch) => branch.branch_code === Number(payload.branch_code))
 

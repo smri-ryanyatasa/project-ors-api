@@ -348,7 +348,7 @@ export class InitialPlReceivingRepository {
         };
     }
 
-    async toConfirm(rows: any, status: string, confirmed_receipt_by: number): Promise<void> {
+    async toConfirm(rows: any, status: string, confirmed_receipt_by: number): Promise<Boolean> {
         const db = await getDb();
 
         const BATCH_SIZE = 500;
@@ -401,6 +401,7 @@ export class InitialPlReceivingRepository {
 
             await transaction.commit();
 
+            return true;
 
         } catch (error) {
             try {

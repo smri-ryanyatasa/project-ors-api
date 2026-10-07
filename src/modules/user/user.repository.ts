@@ -1176,13 +1176,14 @@ export class UserRepository {
         return result.recordset;
     }
 
-    async assignedBranch(user_name: string): Promise<AssignebBranch[]> {
+    async assignedBranch(user_name: string, env: string): Promise<AssignebBranch[]> {
         const result = await withUserContext(user_name, async (request) => {
             return request
                 .input('user_name', sql.VarChar, user_name)
+                .input('env', sql.VarChar, env)
                 .query(`
                 SELECT *
-                FROM dbo.GetBranchListByUser('SCP', @user_name);
+                FROM dbo.GetBranchListByUser(@env, @user_name);
                 `);
         });
 
@@ -1344,6 +1345,23 @@ export class UserRepository {
                     name = @name
                 WHERE id = @filter_id;
             `);
+
+        return result;
+    }
+
+    async updateCurrentEnv(user_id: number, payload: any) {
+        const db = await getDb();
+
+        const result = await db
+            .request()
+            .input('user_id', sql.Int, user_id)
+            .input('env', sql.VarChar, payload.name)
+            .query(`
+                UPDATE users
+                    SET
+                        env = @env
+                    WHERE user_id = @user_id;
+                `);
 
         return result;
     }

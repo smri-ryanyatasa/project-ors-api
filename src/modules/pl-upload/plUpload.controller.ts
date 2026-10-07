@@ -459,8 +459,8 @@ export class PlUploadController {
                 const key = `${material}|${size}`;
 
                 const item = itemMap.get(key);
-
-                const altVendorNames = item.alt_vendor_name ?? [];
+                               
+                const altVendorNames = item?.alt_vendor_name ?? [];
 
                 if (!item) {
                     reasons.push('Material not found in Item Masterfile');
@@ -480,7 +480,6 @@ export class PlUploadController {
                     }
                 }
 
-
                 return {
                     ...row,
                     tag: tag,
@@ -498,7 +497,8 @@ export class PlUploadController {
                 tran_type: 1,
                 uploaded_attempts: 1,
                 tran_date: new Date(),
-                user_name
+                user_name,
+                vendor_tag: rows?.[0]?.tag ?? ''
             };
 
             const result = await this.service.plUpload(response);

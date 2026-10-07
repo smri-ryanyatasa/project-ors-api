@@ -33,6 +33,13 @@ export class AuthService {
             }
         }
 
+        if (user.status == "N") {
+             return {
+                success: false,
+                message:  'Your account is inactive. Please contact your administrator.'
+            }
+        }
+        
         const envs = user?.assigned_env?.split(',')
         .map((env) => env.trim())
         .filter(Boolean) || [];
@@ -41,6 +48,13 @@ export class AuthService {
             return {
                 success: false,
                 message: 'You are not assigned to this environment.',
+            };
+        }
+
+        if (user?.role_id == null) {
+            return {
+                success: false,
+                message: 'Your account is not yet set up. Please contact your administrator.',
             };
         }
 

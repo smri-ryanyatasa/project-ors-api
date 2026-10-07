@@ -216,8 +216,8 @@ export class UserService {
         return branches;
     }
 
-    async getAssignedBranch(user_name: string) {
-        const response = await this.repository.assignedBranch(user_name);
+    async getAssignedBranch(user_name: string, env: string) {
+        const response = await this.repository.assignedBranch(user_name, env);
 
         return response;
     }
@@ -282,6 +282,11 @@ export class UserService {
     async updateSaveFilter(payload: any) {
         const user = await this.repository.updateSaveFilter(payload);
         return user;
+    }
+
+    async updateCurrentEnv(user_id: number, payload: any) {
+        const data = await this.repository.updateCurrentEnv(user_id, payload);
+        return data;
     }
     
 }
